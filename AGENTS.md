@@ -30,6 +30,27 @@ On hokon the SDK is at `~/Android/Sdk` (installed 2026-10-20 with the command-li
 (API 36, google_apis, x86_64) exists there for headless checks:
 `emulator -avd spike -no-window -no-audio -gpu swiftshader_indirect`.
 
+## CI, secrets and the fleet
+
+- `build-apk.yml` is the gate AND the ship path: every push and PR builds a debug APK
+  (artifact `hadoku-debug-apk`); a `v*` tag builds the signed release and attaches it to a
+  GitHub Release. hadoku_site's `repo-policy-manifest.json` requires the `build` context on
+  `main`, and `ci-watch` watches this workflow. Runners come from the fleet via
+  `vars.CI_RUNNER`, which mgmt-api writes; never hardcode a runner label.
+- **Four repo secrets, none typed by hand.** `KEY_SERVICE_MOBILE` is the identity
+  `mobile-service-key` (vault + edge-router registry, repo-associated; `report-job` presents
+  it), seeded by mgmt-api's `POST /keys/seed-github-secret` and kept fresh by rotation
+  (`IDENTITY_OVERRIDES` in `key-rotation.ts`). `HADOKU_MOBILE_KEYSTORE_BASE64`,
+  `HADOKU_MOBILE_KEYSTORE_PASSWORD` and `HADOKU_MOBILE_KEY_PASSWORD` are vault items landed
+  through `provision-secret` and mirrored here with `gh secret set`; the vault is the source,
+  the repo copy is derived. Alias `hadoku-mobile` is not a secret and lives in the workflow.
+  A keystore change is `provision-secret` on a NEW name plus a workflow edit — rotation of a
+  signing key is an app-identity change on the phone, so it is never done casually.
+- Release signing reads `KEYSTORE_FILE` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`
+  from the environment (`android/app/build.gradle`). With none set, `assembleRelease` yields
+  an UNSIGNED APK rather than failing.
+- Enrolment record: hadoku_site commit "fleet: enrol hadoku-mobile" (2026-10-21).
+
 ## How the shell works, and what it must not do
 
 - **The page is the app.** `server.url` makes the WebView first-party on hadoku.me, so `/auth`
