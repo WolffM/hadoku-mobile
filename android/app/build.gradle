@@ -16,8 +16,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release signing comes from the environment, never from a file in the repo.
+    // CI decodes the keystore from the HADOKU_MOBILE_* secrets (see
+    // .github/workflows/build-apk.yml); with no KEYSTORE_PASSWORD in the
+    // environment a release build is simply unsigned, so a local
+    // `assembleRelease` still works and nothing has to be faked.
+    signingConfigs {
+        release {
+            def keystoreFile = System.getenv("KEYSTORE_FILE") ?: "release.keystore"
+            storeFile file(keystoreFile)
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD")
+        }
+    }
     buildTypes {
         release {
+            if (System.getenv("KEYSTORE_PASSWORD")) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

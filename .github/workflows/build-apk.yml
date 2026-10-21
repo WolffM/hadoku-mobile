@@ -1,0 +1,128 @@
+name: Build Android APK
+
+# The gate AND the ship path. Every push and PR builds a debug APK, so a broken
+# shell is red before it is tagged; a `v*` tag builds the signed release APK and
+# attaches it to a GitHub Release, which is how the phone gets it (sideload).
+# Required-context name is `build` (hadoku_site repo-policy-manifest.json).
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - v*
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  build:
+    # Runner SELECTION, not a job-level `if:`: a skipped required check never
+    # reports and leaves a PR unmergeable. An unauthorized fork PR lands on
+    # GitHub-hosted instead of a claw (a persistent machine on a home LAN).
+    # author_association is computed by GitHub, not by the submitter.
+    #
+    # The `|| '"ubuntu-latest"'` fallback is the TEMPLATE form for a repo the
+    # fleet has not adopted yet: vars.CI_RUNNER is unset until the nightly
+    # reconcile writes it, and a bare fromJSON(undefined) would fail to start.
+    # Once hadoku_site's fleet-runner-coverage.json lists this repo, drop the
+    # fallback — check:repo-policy fails on it in an adopted repo.
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) && '["ubuntu-latest"]') || vars.CI_RUNNER || '"ubuntu-latest"') }}
+    permissions:
+      contents: write
+    timeout-minutes: 30
+
+    steps:
+      - name: Mark the start, so the reported duration is real
+        run: echo "JOB_STARTED_AT=$(date -u +%s)" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Capacitor 8 needs Node 22+. pnpm comes from the `packageManager` field
+      # via corepack (pnpm/action-setup races itself on shared runners).
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.5.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: temurin
+
+      # android-actions/setup-android shells out to `unzip`, which the claw
+      # image does not ship.
+      - name: Ensure unzip is present
+        run: command -v unzip || (sudo apt-get update && sudo apt-get install -y unzip)
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Sync Capacitor config into the Android project
+        run: pnpm exec cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: cd android && ./gradlew --no-daemon assembleDebug
+
+      - name: Upload debug APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: hadoku-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      # Release: the keystore is a vault item (HADOKU_MOBILE_KEYSTORE_BASE64,
+      # provisioned through hadoku_site's `provision-secret`) mirrored into this
+      # repo's secrets. The alias is not a secret.
+      - name: Decode the release keystore
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "${{ secrets.HADOKU_MOBILE_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build signed release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: cd android && ./gradlew --no-daemon assembleRelease
+        env:
+          KEYSTORE_FILE: release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: hadoku-mobile
+          KEY_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEY_PASSWORD }}
+
+      - name: Name the release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/hadoku-${GITHUB_REF_NAME}.apk
+
+      - name: Create the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: android/app/build/outputs/apk/release/hadoku-*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A red run is seen by nobody unless it says so itself. `always()` so
+      # recoveries report too, or the alert state stays broken.
+      - name: Report the outcome so a silent failure can't hide
+        if: always()
+        uses: WolffM/hadoku-actions/report-job@v1
+        with:
+          job-name: mobile:build-apk
+          service-key: ${{ secrets.KEY_SERVICE_MOBILE }}
+          started-at: ${{ env.JOB_STARTED_AT }}
