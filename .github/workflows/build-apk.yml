@@ -23,12 +23,12 @@ jobs:
     # GitHub-hosted instead of a claw (a persistent machine on a home LAN).
     # author_association is computed by GitHub, not by the submitter.
     #
-    # The `|| '"ubuntu-latest"'` fallback is the TEMPLATE form for a repo the
-    # fleet has not adopted yet: vars.CI_RUNNER is unset until the nightly
-    # reconcile writes it, and a bare fromJSON(undefined) would fail to start.
-    # Once hadoku_site's fleet-runner-coverage.json lists this repo, drop the
-    # fallback — check:repo-policy fails on it in an adopted repo.
-    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) && '["ubuntu-latest"]') || vars.CI_RUNNER || '"ubuntu-latest"') }}
+    # Bare `vars.CI_RUNNER`, no fallback: this repo is in hadoku_site's
+    # fleet-runner-coverage.json (02fe3070), so mgmt-api always keeps the
+    # variable set — claw labels normally, hosted while every claw is offline —
+    # and a literal here would be a second copy of the label set that nothing
+    # keeps in step. check:repo-policy fails on the fallback form.
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) && '["ubuntu-latest"]') || vars.CI_RUNNER) }}
     permissions:
       contents: write
     timeout-minutes: 30
