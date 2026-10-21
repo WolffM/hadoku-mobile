@@ -1,0 +1,48 @@
+# Capacitor
+# Note: android/ and ios/ are committed because we have custom icons
+# android/
+# ios/
+
+# Node
+node_modules
+yarn.lock
+
+# Environment
+.env.local
+.env
+
+# Android Keystore (NEVER commit this!)
+*.keystore
+*.jks
+keystore.base64.txt
+keystore.base64.oneline.txt
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+scripts/.venv/
+
+# Tools
+actionlint
+
+# per-repo vault key (Phase 2 of per-key ACL plan; never commit)
+.devvault.local.json

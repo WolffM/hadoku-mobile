@@ -1,0 +1,44 @@
+package me.hadoku.app;
+
+import android.os.Bundle;
+import android.util.Log;
+import android.webkit.CookieManager;
+import android.webkit.WebView;
+import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.WebViewListener;
+
+/**
+ * The shell. Everything a visitor sees is the live site at capacitor.config.json's
+ * server.url; this class exists so the two facts the spike has to prove show up in
+ * logcat on every page load, and for nothing else yet:
+ *
+ *   1. the native layer can see the hadoku_session cookie the site set
+ *      (HttpOnly hides it from page JavaScript, not from CookieManager);
+ *   2. window.Capacitor exists inside a page served from hadoku.me, i.e. the
+ *      bridge was injected into a remote document.
+ *
+ * Only PRESENCE is logged. The cookie value is a credential and never reaches
+ * a log line.
+ */
+public class MainActivity extends BridgeActivity {
+    private static final String TAG = "HadokuShell";
+    private static final String SITE = "https://hadoku.me";
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        this.bridge.addWebViewListener(new WebViewListener() {
+            @Override
+            public void onPageLoaded(WebView webView) {
+                String url = webView.getUrl();
+                String cookies = CookieManager.getInstance().getCookie(SITE);
+                boolean session = cookies != null && cookies.contains("hadoku_session=");
+                Log.i(TAG, "page loaded url=" + url + " hadoku_session=" + (session ? "present" : "absent"));
+                webView.evaluateJavascript(
+                    "(function(){var c=window.Capacitor;return c?('bridge:'+(typeof c.isNativePlatform==='function'&&c.isNativePlatform())):'bridge:none'})()",
+                    v -> Log.i(TAG, "page loaded url=" + url + " " + v)
+                );
+            }
+        });
+    }
+}

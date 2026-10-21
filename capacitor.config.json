@@ -1,0 +1,19 @@
+{
+  "appId": "me.hadoku.app",
+  "appName": "Hadoku",
+  "webDir": "www",
+  "server": {
+    "url": "https://hadoku.me/apps/",
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "appendUserAgent": "HadokuApp/0.1.0"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "style": "DEFAULT"
+    }
+  }
+}
