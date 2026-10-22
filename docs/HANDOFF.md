@@ -133,10 +133,15 @@ What shipped (see `AGENTS.md` "The Library" for how it is built):
 - Acceptance, `pnpm test:library-live` on the API 36 emulator against production: browse to
   Frieren s01e01 through the UI, download 11 files / 562 MB in 39 s, video sha256 equals
   `content_token`, airplane mode, cold launch opens the Library, the episode plays.
+- **Background audio (2026-10-22).** `PlaybackService` (a Media3 `MediaSessionService`) owns
+  the player; `PlayerActivity` connects with a `MediaController`. Home or screen-off keeps
+  playing as audio with the video track off; media notification, lock-screen, headset and
+  Bluetooth controls through the session; audio focus and "becoming noisy" (headphones out)
+  pause it; the notification returns to the same episode; Back stops it and the notification
+  goes. Position saves on every stop of playback, every 5 s while playing, and before
+  another episode replaces it. `BackgroundPlaybackTest` proves each of those on the emulator.
 
 Not in v1, in order of value:
-- **Background audio and lock-screen controls** (`MediaSessionService`). The player is a
-  plain activity: leaving it pauses.
 - A "Wi-Fi only" setting: downloads are allowed on metered networks.
 - Not yet seen on the Pixel 8a.
 - Records are `episode.json` per episode, not Room as the design said: the record lives

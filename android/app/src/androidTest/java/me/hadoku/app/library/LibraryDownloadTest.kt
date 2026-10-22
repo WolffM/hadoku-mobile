@@ -2,7 +2,7 @@ package me.hadoku.app.library
 
 import android.util.Log
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -16,6 +16,7 @@ import me.hadoku.app.Hadoku
 import me.hadoku.app.LiveProduction
 import me.hadoku.app.MainActivity
 import me.hadoku.app.player.EpisodeFiles
+import me.hadoku.app.player.PlaybackService
 import me.hadoku.app.player.PlayerActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -75,7 +76,7 @@ class LibraryDownloadTest {
                 val player = Device.waitForResumed(PlayerActivity::class.java)
                 Device.waitUntil("5 s played offline", 30_000) {
                     var at = 0L
-                    instrumentation.runOnMainSync { at = player.player.currentPosition }
+                    instrumentation.runOnMainSync { at = PlaybackService.player?.currentPosition ?: 0 }
                     at >= 5_000
                 }
                 instrumentation.runOnMainSync { player.finish() }

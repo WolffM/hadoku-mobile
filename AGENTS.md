@@ -18,7 +18,7 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Native requests as the signed-in visitor (cookie read at use), `online()` |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
 | `android/app/src/main/java/me/hadoku/app/download/` | `EpisodeDownloads`: one file from `/watchparty/media/*` into the episode dir |
-| `android/app/src/main/java/me/hadoku/app/player/` | Media3 player for a downloaded episode; resumes where the viewer stopped |
+| `android/app/src/main/java/me/hadoku/app/player/` | `PlaybackService` (Media3 `MediaSessionService`: the one player, background audio, lock-screen controls, saved position) and `PlayerActivity`, the screen that connects to it |
 | `android/app/src/test/` | JVM unit tests |
 | `android/app/src/androidTest/` | Instrumented tests; `assets/episodes/fixture-s01e01` is a synthetic episode |
 | `e2e/` | Playwright driving the real WebView inside the installed debug APK |
@@ -51,7 +51,7 @@ on adb, and every device command below calls it first.
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
 | Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
-| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; the bar switches tabs; no network at launch opens the Library |
+| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the bar switches tabs; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, sign-in form |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, survives Home + kill, follows into sites |
@@ -142,6 +142,13 @@ on adb, and every device command below calls it first.
   download again (never splice two encodes).
 - **Reads `tracks.json`, not `/api/media/<id>/tracks`**: the API keeps only English
   subtitles for the watchparty UI.
+- **Playback lives in `PlaybackService`**, not the activity. A controller asks for an episode
+  by mediaId alone; the service's `onSetMediaItems` fills in title and saved position from
+  `episode.json`, and the service is the only writer of `positionMs`. Leaving the screen
+  with Back stops; any other way keeps playing as audio (video track disabled until the
+  screen returns). The service is not exported: system controls use the session's platform
+  token. Instrumented tests read the service's ExoPlayer (`PlaybackService.player`) for
+  exact positions and decoder counters.
 - Compose is pinned to BOM 2026.06.00 (Compose 1.11): newer BOMs need compileSdk 37 and AGP
   9.1, which Capacitor 8's template does not use yet.
 

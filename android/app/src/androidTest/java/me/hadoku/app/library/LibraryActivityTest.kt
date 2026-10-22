@@ -4,7 +4,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
@@ -14,6 +14,7 @@ import java.io.File
 import me.hadoku.app.Device
 import me.hadoku.app.Fixture
 import me.hadoku.app.player.EpisodeFiles
+import me.hadoku.app.player.PlaybackService
 import me.hadoku.app.player.PlayerActivity
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -67,7 +68,7 @@ class LibraryActivityTest {
             val player = Device.waitForResumed(PlayerActivity::class.java)
             Device.waitUntil("3 s played", 15_000) {
                 var at = 0L
-                instrumentation.runOnMainSync { at = player.player.currentPosition }
+                instrumentation.runOnMainSync { at = PlaybackService.player?.currentPosition ?: 0 }
                 at >= 3_000
             }
             instrumentation.runOnMainSync { player.finish() }

@@ -18,9 +18,12 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
  * every audio language is its own progressive source, so DefaultTrackSelector
  * switches language without re-preparing. All files start at t=0 (ingest
  * writes them that way), so no period offset is adjusted.
+ *
+ * [item] carries the episode's mediaId and metadata; the video source takes
+ * them over, so the player (and its media session) reports the episode.
  */
 @OptIn(UnstableApi::class)
-fun episodeMediaSource(context: Context, files: EpisodeFiles): MediaSource {
+fun episodeMediaSource(context: Context, item: MediaItem, files: EpisodeFiles): MediaSource {
     val data = DefaultDataSource.Factory(context)
     val subtitles = files.subtitles.map {
         MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(it.file))
@@ -29,7 +32,7 @@ fun episodeMediaSource(context: Context, files: EpisodeFiles): MediaSource {
             .build()
     }
     val video = DefaultMediaSourceFactory(data).createMediaSource(
-        MediaItem.Builder()
+        item.buildUpon()
             .setUri(Uri.fromFile(files.video))
             .setSubtitleConfigurations(subtitles)
             .build()

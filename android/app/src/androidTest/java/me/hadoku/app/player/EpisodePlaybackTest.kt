@@ -14,6 +14,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+import me.hadoku.app.Device
 import me.hadoku.app.Fixture
 import kotlin.math.abs
 import org.junit.After
@@ -57,6 +58,11 @@ class EpisodePlaybackTest {
         if (mediaId == Fixture.ID) Fixture.copyTo(dir)
         files = EpisodeFiles.from(dir)
         scenario = ActivityScenario.launch(PlayerActivity.intent(target, mediaId))
+        Device.waitUntil("the service playing $mediaId", 10_000) {
+            var current: String? = null
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { current = PlaybackService.player?.currentMediaItem?.mediaId }
+            current == mediaId
+        }
         onPlayer {
             it.addListener(object : Player.Listener {
                 override fun onPlayerError(e: PlaybackException) { error = e }
@@ -162,9 +168,10 @@ class EpisodePlaybackTest {
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    /** The service's own ExoPlayer, not the activity's controller: decoder counters and exact positions. */
     private fun <T> onPlayer(block: (ExoPlayer) -> T): T {
         var result: Result<T>? = null
-        scenario.onActivity { result = runCatching { block(it.player) } }
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { result = runCatching { block(PlaybackService.player!!) } }
         return result!!.getOrThrow()
     }
 
