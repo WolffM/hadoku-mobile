@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 
@@ -19,6 +20,16 @@ import com.getcapacitor.WebViewListener;
  *
  * Only PRESENCE is logged. The cookie value is a credential and never reaches
  * a log line.
+ *
+ * It also flushes the cookie store whenever the app leaves the foreground.
+ * Chromium writes cookies to disk only periodically, and Capacitor flushes
+ * only on its CapacitorCookies path, which stays disabled here; without this a
+ * sign-in followed by Android killing the backgrounded app could be lost, and
+ * the next launch would be signed out.
+ *
+ * And it owns Back: Capacitor core leaves Back to its optional App plugin, so
+ * without this Back on any site left the app instead of returning to the page
+ * before it. WebView history first; at the launcher, Android's own Back.
  */
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
@@ -27,6 +38,19 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView webView = bridge.getWebView();
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
+            }
+        });
         this.bridge.addWebViewListener(new WebViewListener() {
             @Override
             public void onPageLoaded(WebView webView) {
@@ -40,5 +64,11 @@ public class MainActivity extends BridgeActivity {
                 );
             }
         });
+    }
+
+    @Override
+    public void onPause() {
+        CookieManager.getInstance().flush();
+        super.onPause();
     }
 }
