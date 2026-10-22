@@ -1,0 +1,4 @@
+{
+  "//": "Loaded by ../hadoku_site/scripts/secrets/dev-vault.mjs with this repo's own key (.devvault.local.json, gitignored). HADOKU_E2E_KEY is a friend-tier identity used only to sign the emulator in for device tests.",
+  "HADOKU_E2E_KEY": "KEY_FRIEND_MOBILE_E2E"
+}

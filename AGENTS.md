@@ -50,7 +50,8 @@ on adb, and every device command below calls it first.
 | Instrumented | `pnpm test:device` | emulator | the player plays the synthetic fixture: tracks, language switch, every subtitle, seek, no dropped frames |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, sign-in form |
-| Signed-in e2e | `HADOKU_E2E_KEY=… pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, survives Home + kill, follows into sites |
+| Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, survives Home + kill, follows into sites |
+| Download resume | `pnpm emulator:sign-in`, then `pnpm test:download-resume [file] [n]` | emulator | a real file through the edge survives n airplane-mode cuts, byte-identical to the origin |
 
 - CI compiles the instrumented tests (`:app:assembleDebugAndroidTest`) so they cannot rot,
   but does not run anything on an emulator: that needs a runner with KVM, which the fleet
@@ -61,7 +62,13 @@ on adb, and every device command below calls it first.
   a release APK cannot be driven. Native facts come from the `HadokuShell` logcat probe.
 - **Signed-in tests never run unattended.** They sign in for real and leave a 30-day
   session in production for that identity, so they fail loudly without `HADOKU_E2E_KEY`
-  instead of skipping. Use your own key; never borrow another repo's vault identity.
+  instead of skipping. The key is the friend-tier `KEY_FRIEND_MOBILE_E2E`, fetched by
+  dev-vault (`.devvault.json`) with this repo's own service key in `.devvault.local.json`
+  (gitignored, minted by the operator). Never borrow another repo's vault identity.
+- **`@LiveProduction` tests** (the download spike) move real bandwidth through production
+  with a real session; Gradle excludes them from `pnpm test:device` and each runs only
+  through its own script. They need the emulator signed in first (`pnpm emulator:sign-in`,
+  which survives until something runs `pm clear`, e.g. `pnpm e2e`).
 - **The fixture** is regenerated with `scripts/make-fixture-episode.sh`, which copies
   watchparty's ffmpeg flags (`processing_meta.json`, schema v3-fragmented-audio), including
   the per-language sample rates and the QuickTime chapter track inside each audio file.
