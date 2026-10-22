@@ -59,10 +59,12 @@ export class App {
    * never the value, so this checks the credential path without exposing it.
    */
   async nativeSession(url = LAUNCHER): Promise<'present' | 'absent'> {
-    const line = new RegExp(`page loaded url=${url.replace(/[.?/]/g, '\\$&')} hadoku_session=(present|absent)`);
+    const line = new RegExp(`page loaded url=${url.replace(/[.?/]/g, '\\$&')} hadoku_session=(present|absent)`, 'g');
     let seen: 'present' | 'absent' | undefined;
+    // The latest load of that url: the log also holds loads from before a sign-in.
+    const latest = (log: string) => [...log.matchAll(line)].at(-1)?.[1] as typeof seen;
     await expect
-      .poll(async () => (seen = line.exec(await this.shell('logcat -d -s HadokuShell:I'))?.[1] as typeof seen), {
+      .poll(async () => (seen = latest(await this.shell('logcat -d -s HadokuShell:I'))), {
         message: `no HadokuShell probe for ${url}`,
         timeout: 15_000,
       })
