@@ -134,6 +134,14 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 
 ## Tooling on hokon
 
+- **Which tree is production.** hadoku_site moved its deployed services to
+  `/home/hadoku/srv/<repo>` (2026-10); `~/repos/<repo>` is then a plain checkout that does
+  not advance with deploys. As of 2026-10-21 watchparty had NOT moved: its live server
+  runs from `~/repos/hadoku-watchparty/apps/server` with
+  `MEDIA_ROOT=~/repos/hadoku-watchparty/media`. Check the live process
+  (`pm2 jlist` for the wrapper, then the server's own `MEDIA_ROOT`) before trusting either.
+  The device-test scripts prefer `/srv` when it exists; `WATCHPARTY_MEDIA_ROOT` overrides.
+
 - Android SDK at `~/Android/Sdk` (cmdline-tools, platform 36, build-tools 36 and 35,
   platform-tools, emulator). `android/local.properties` points at it; gitignored.
 - AVD `spike`: API 36, google_apis, x86_64, Pixel 8 profile, WebView 133. Headless:
