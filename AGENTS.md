@@ -97,6 +97,11 @@ on adb, and every device command below calls it first.
   `HADOKU_MOBILE_KEYSTORE_PASSWORD` and `HADOKU_MOBILE_KEY_PASSWORD` are vault items landed
   through `provision-secret` and mirrored here with `gh secret set`; the vault is the source,
   the repo copy is derived. Alias `hadoku-mobile` is not a secret and lives in the workflow.
+  The keystore is PKCS12, which has one password: the workflow signs with
+  `HADOKU_MOBILE_KEYSTORE_PASSWORD` for the key too. `HADOKU_MOBILE_KEY_PASSWORD` was
+  generated but never applied to the key (keytool ignores `-keypass` for PKCS12), so
+  nothing reads it; v0.1.0's tag build failed on it, which is why v0.1.1 is the first
+  release.
   A keystore change is `provision-secret` on a NEW name plus a workflow edit — rotation of a
   signing key is an app-identity change on the phone, so it is never done casually.
 - Release signing reads `KEYSTORE_FILE` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`

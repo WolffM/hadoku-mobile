@@ -2,7 +2,7 @@
 
 You are picking up the one-app-for-the-ecosystem programme at the point where the shell and
 its first native feature, the offline Library, are built, tested against production, and
-released as v0.1.0. Everything below was verified on 2026-10-21/22 by the session that built
+released as v0.1.1. Everything below was verified on 2026-10-21/22 by the session that built
 it; nothing is a guess.
 
 ## Read first, in this order
@@ -40,9 +40,11 @@ The tracking issue is hadoku_site#470.
   `e2e/signed-in.spec.ts`, which passed 3/3 against production on 2026-10-21 with the
   dedicated `mobile-e2e` friend identity.
 - **Download spike: GO (2026-10-21).** Details under "2. Download spike" below.
-- **Library v1: DONE (2026-10-22), released in v0.1.0.** Details under "3. Library v1" below.
-- **v0.1.0 is the first release**, tagged by hand on the commit package.json already called
-  0.1.0; the signed APK is on the GitHub Release. The next one is `pnpm release patch|minor`.
+- **Library v1: DONE (2026-10-22), released in v0.1.1.** Details under "3. Library v1" below.
+- **v0.1.1 is the first release**: github.com/WolffM/hadoku-mobile/releases/tag/v0.1.1,
+  `hadoku-v0.1.1.apk`, signed with the documented key (SHA-256 `7f88aedf…`), versionCode
+  1001; smoke-tested on the emulator. The `v0.1.0` tag exists with no release: its build
+  failed reading the key (see `AGENTS.md`, the PKCS12 note). Next: `pnpm release patch|minor`.
 
 ## The work, in order
 
