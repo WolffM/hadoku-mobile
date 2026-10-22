@@ -109,6 +109,19 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: echo "${{ secrets.HADOKU_MOBILE_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
 
+      # The type and entry count only, never a secret: proves the store
+      # password opens it before Gradle gets that far.
+      - name: Show the keystore type
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: keytool -list -keystore android/app/release.keystore -storepass "$KEYSTORE_PASSWORD" | grep -E '^(Keystore type|Your keystore contains)'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEYSTORE_PASSWORD }}
+
+      # The keystore is PKCS12 (keytool's default since Java 9), which has ONE
+      # password: keytool ignores -keypass for it, so the key's password is
+      # the store's. The separately generated HADOKU_MOBILE_KEY_PASSWORD was
+      # never applied to the key; the v0.1.0 tag build failed reading the key
+      # with it ("Given final block not properly padded").
       - name: Build signed release APK
         if: startsWith(github.ref, 'refs/tags/v')
         run: cd android && ./gradlew --no-daemon :app:assembleRelease
@@ -116,7 +129,7 @@ jobs:
           KEYSTORE_FILE: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: hadoku-mobile
-          KEY_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEY_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEYSTORE_PASSWORD }}
 
       - name: Name the release APK
         if: startsWith(github.ref, 'refs/tags/v')
