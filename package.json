@@ -1,6 +1,6 @@
 {
   "name": "hadoku-mobile",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "One Android app for every hadoku.me site: a Capacitor WebView shell over the live launcher, native only where the web cannot go.",
   "scripts": {
