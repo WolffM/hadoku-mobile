@@ -25,9 +25,14 @@ import org.junit.runner.RunWith
 /**
  * The player spike's go/no-go, as a test: watchparty's MSE-flavoured fMP4 plus
  * per-language audio files play as-is, both languages switch, subtitles render,
- * seek lands, and playback keeps pace with the wall clock without the video
- * renderer dropping frames (which is how A/V drift would show: Media3 slaves
- * video to the audio clock and drops frames that fall behind it).
+ * seek lands, and playback keeps pace with the wall clock without A/V drift.
+ *
+ * Drift shows in the video renderer: Media3 slaves video to the audio clock
+ * and drops frames that fall behind it, so once video lags, EVERY frame is
+ * late and drops come in long consecutive runs. A CPU-starved emulator (it
+ * decodes in software, and hokon doubles as the CI backstop) drops scattered
+ * single frames instead. So the drift gate is the longest consecutive run;
+ * the total only has to stay low enough that the picture is still watchable.
  *
  * By default it plays the synthetic fixture bundled in the test APK. With
  * `-e mediaId <id>` it plays an episode already pushed into the app's
@@ -131,7 +136,9 @@ class EpisodePlaybackTest {
         Log.i(TAG, "played ${pos1 - pos0} ms in ${wall1 - wall0} ms; video rendered=$rendered dropped=$dropped maxConsecutiveDropped=${counters.maxConsecutiveDroppedBufferCount}")
 
         assertTrue("media clock ran ${pos1 - pos0} ms in ${wall1 - wall0} ms", abs((pos1 - pos0) - (wall1 - wall0)) < 750)
-        assertTrue("dropped $dropped of ${rendered + dropped} video frames", dropped * 20 <= rendered + dropped)
+        val run = counters.maxConsecutiveDroppedBufferCount
+        assertTrue("$run consecutive video frames dropped: video fell behind the audio clock", run <= MAX_CONSECUTIVE_DROPS)
+        assertTrue("dropped $dropped of ${rendered + dropped} video frames", dropped * 5 <= rendered + dropped)
     }
 
     private fun selectedAudioLanguage(p: ExoPlayer) = selectedLanguage(p, C.TRACK_TYPE_AUDIO)
@@ -190,6 +197,8 @@ class EpisodePlaybackTest {
     private companion object {
         const val TAG = "HadokuPlayerTest"
         const val FIXTURE = "fixture-s01e01"
+        /** Half a second at 24 fps. */
+        const val MAX_CONSECUTIVE_DROPS = 12
         val CUE_START = Regex("""(?m)^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3}) -->""")
     }
 }

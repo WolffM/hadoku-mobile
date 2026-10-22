@@ -43,10 +43,11 @@ class PlayerActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_MEDIA_ID = "mediaId"
+        const val EPISODES = "episodes"
 
         /** Where an episode lives: app-private, so no storage permission and gone on uninstall. */
         fun episodeDir(context: Context, mediaId: String): File =
-            File(context.getExternalFilesDir("episodes"), mediaId)
+            File(context.getExternalFilesDir(EPISODES), mediaId)
 
         fun intent(context: Context, mediaId: String): Intent =
             Intent(context, PlayerActivity::class.java).putExtra(EXTRA_MEDIA_ID, mediaId)
