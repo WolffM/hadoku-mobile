@@ -22,17 +22,40 @@ The tracking issue is hadoku_site#470.
   the icon-grid launcher that lives in hadoku_site (`src/pages/apps.astro`). On an API 36
   emulator the native layer saw the session cookie after the site's own sign-in, and
   `window.Capacitor.isNativePlatform()` was true inside the hadoku.me page. `MainActivity`
-  logs exactly those two facts (presence only) and nothing else.
+  logs exactly those two facts (presence only); that is still its only logging.
 - **Repo: enrolled.** CI builds a debug APK on every push and PR and a signed release on a
   `v*` tag, on fleet runners, reporting as `mobile:build-apk`. All four repo secrets exist and
   come from the vault. Branch protection requires `build`. Two green runs so far; the second
   ran on a claw.
-- **Not started:** the ExoPlayer spike, the DownloadManager spike, the native Library. That is
-  your work, in that order.
+- **Player spike: GO (2026-10-21).** The real Frieren s01e01 files play as-is under
+  Media3 1.11.1 with `MergingMediaSource`. Details under "1. Player spike" below.
+- **Test harness: built (2026-10-21).** JVM unit, instrumented (synthetic fixture + real
+  episode), and Playwright `_android` e2e over the app's own WebView. See `AGENTS.md` "Tests".
+  CI runs typecheck + unit tests and compiles the instrumented tests; nothing runs on an
+  emulator in CI yet (needs a KVM runner).
+- **Shell fixes the e2e suite found:** Back on any site left the app (Capacitor core has no
+  Back handling; it lives in the optional App plugin), and the session cookie was never
+  flushed on pause. Both fixed natively in `MainActivity`. The flush is covered by
+  `e2e/signed-in.spec.ts`, which has NOT run yet: it needs an access key.
+- **Not started:** the DownloadManager spike, the native Library. Spike 2 needs a signed-in
+  emulator, i.e. a key, the same as the signed-in e2e.
 
 ## The work, in order
 
-### 1. Player spike (half a day)
+### 1. Player spike: DONE, GO
+
+Result on the real files (`pnpm test:player-real`, API 36 emulator, swiftshader):
+- Tracks are exactly 1 video, en + ja audio, and the 8 side-loaded VTTs. Each audio file's
+  QuickTime chapter track (`hdlr text`, `tref chap`, from the source MKV) is ignored by
+  Media3; it does NOT surface as a phantom subtitle.
+- Both audio languages switch live, across the 44.1 kHz (eng) / 48 kHz (jpn) difference.
+- All 8 subtitle languages render; the stray `</b>` ASS debris is stripped; VTT
+  `line:/position:/align:` placement is honoured (screenshots in the test output dir).
+- Seek to 60% resumes there. 180 s of 1080p played 179,998 ms of media in 180,000 ms of
+  wall clock, 4,330 frames rendered, 0 dropped: no A/V drift.
+- Not yet seen on the Pixel 8a (hardware decoder) or by a human ear/eye in motion.
+
+What was asked:
 
 Prove Media3 ExoPlayer plays watchparty's on-disk layout from local files:
 
@@ -107,7 +130,7 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 - **Insets.** `plugins.SystemBars.insetsHandling: native` keeps the page below the status bar
   with no site change. Leave it.
 - **UA.** `appendUserAgent: HadokuApp/<version>` is how request logs tell app sessions apart.
-  Bump it with the version.
+  It reads `package.json`'s version, so `pnpm release` bumps it with everything else.
 
 ## Tooling on hokon
 
@@ -144,7 +167,12 @@ Native Kotlin screens behind a bottom bar beside the WebView:
   `/watchparty/media/*` (see spike 2).
 - App Links: `public/.well-known/assetlinks.json` on hadoku.me plus an intent filter here, so
   hadoku.me links open the app. Pages already serves `.well-known`.
-- Cutting `v0.1.0` to put the first signed shell on the phone.
+- Cutting `v0.1.0` to put the first signed shell on the phone (`pnpm release patch` now does
+  the bump, tag and push; the first tag would be v0.1.1, or tag v0.1.0 by hand).
+- A KVM-capable runner label so `pnpm test:device` and `pnpm e2e` can run in CI. hokon has
+  `/dev/kvm`; whether the claws do is unchecked.
+- A dedicated e2e identity (friend tier) for `pnpm e2e:signed-in` and spike 2, instead of a
+  person's own key.
 - iOS: not planned. $99/year, 90-day TestFlight builds, and App Store rule 4.2 against
   repackaged websites.
 
