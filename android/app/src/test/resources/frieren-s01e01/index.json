@@ -1,0 +1,116 @@
+{
+ "media_id": "frieren-s01e01",
+ "index_source": "moof",
+ "timescale": 24000,
+ "video_track_id": 1,
+ "duration_ms": 1560892,
+ "init_segment": {
+  "start_byte": 0,
+  "end_byte": 846
+ },
+ "fragments": [
+  {
+   "start_ms": 0,
+   "end_ms": 2002,
+   "start_byte": 847,
+   "end_byte": 241750,
+   "keyframe": true
+  },
+  {
+   "start_ms": 2002,
+   "end_ms": 4004,
+   "start_byte": 241751,
+   "end_byte": 699189,
+   "keyframe": true
+  },
+  {
+   "start_ms": 1559558,
+   "end_ms": 1560892,
+   "start_byte": 485316303,
+   "end_byte": 485369032,
+   "keyframe": true
+  }
+ ],
+ "metrics": {
+  "moof_count": 780,
+  "max_fragment_ms": 2002,
+  "mean_fragment_ms": 2001,
+  "raw_first_tfdt": 0
+ },
+ "mse_codec": "avc1.640028",
+ "audio_tracks": [
+  {
+   "track_id": "eng_1",
+   "label": "English",
+   "lang": "eng",
+   "path": "audio/audio_eng_1.m4a",
+   "mse_codec": "audio/mp4; codecs=\"mp4a.40.2\"",
+   "timescale": 44100,
+   "duration_ms": 1559916,
+   "init_segment": {
+    "start_byte": 0,
+    "end_byte": 1312
+   },
+   "fragments": [
+    {
+     "start_ms": 0,
+     "end_ms": 2019,
+     "start_byte": 1313,
+     "end_byte": 53316
+    },
+    {
+     "start_ms": 2019,
+     "end_ms": 4039,
+     "start_byte": 53317,
+     "end_byte": 103476
+    },
+    {
+     "start_ms": 1559544,
+     "end_ms": 1559916,
+     "start_byte": 38345246,
+     "end_byte": 38353669
+    }
+   ],
+   "metrics": {
+    "moof_count": 773
+   }
+  },
+  {
+   "track_id": "jpn_2",
+   "label": "Japanese",
+   "lang": "jpn",
+   "path": "audio/audio_jpn_2.m4a",
+   "mse_codec": "audio/mp4; codecs=\"mp4a.40.2\"",
+   "timescale": 48000,
+   "duration_ms": 1560914,
+   "init_segment": {
+    "start_byte": 0,
+    "end_byte": 1312
+   },
+   "fragments": [
+    {
+     "start_ms": 0,
+     "end_ms": 2005,
+     "start_byte": 1313,
+     "end_byte": 41776
+    },
+    {
+     "start_ms": 2005,
+     "end_ms": 4010,
+     "start_byte": 41777,
+     "end_byte": 91619
+    },
+    {
+     "start_ms": 1560149,
+     "end_ms": 1560914,
+     "start_byte": 38405537,
+     "end_byte": 38406004
+    }
+   ],
+   "metrics": {
+    "moof_count": 779
+   }
+  }
+ ],
+ "content_token": "c08b034a39b756a70fb6f3361452b216ad674619738c09f3fbf34d91b1636247"
+}

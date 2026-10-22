@@ -13,12 +13,16 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `capacitor.config.ts` | `server.url`, UA suffix, System Bars insets. The whole product. |
 | `package.json` `version` | The ONLY version. Gradle derives versionName/versionCode from it, the UA suffix reads it |
 | `android/` | Capacitor-generated Android project (committed, like task-mobile) |
-| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back |
-| `android/app/src/main/java/me/hadoku/app/player/` | Media3 player for a downloaded episode (Kotlin); Library builds on it |
+| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, installs the bar, opens the Library when offline |
+| `android/app/src/main/java/me/hadoku/app/AppBar.kt` | The two-tab bar (Hadoku, Library) and the Compose theme |
+| `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Native requests as the signed-in visitor (cookie read at use), `online()` |
+| `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
+| `android/app/src/main/java/me/hadoku/app/download/` | `EpisodeDownloads`: one file from `/watchparty/media/*` into the episode dir |
+| `android/app/src/main/java/me/hadoku/app/player/` | Media3 player for a downloaded episode; resumes where the viewer stopped |
 | `android/app/src/test/` | JVM unit tests |
 | `android/app/src/androidTest/` | Instrumented tests; `assets/episodes/fixture-s01e01` is a synthetic episode |
 | `e2e/` | Playwright driving the real WebView inside the installed debug APK |
-| `scripts/` | `emulator.sh`, `test-player-real.sh`, `make-fixture-episode.sh`, `release.mjs` |
+| `scripts/` | `emulator.sh`, `emulator-sign-in.mjs`, the device-test scripts, `make-fixture-episode.sh`, `release.mjs` |
 | `www/` | One placeholder page. Never shown: `server.url` replaces it |
 
 ## Commands
@@ -46,12 +50,13 @@ on adb, and every device command below calls it first.
 | Layer | Command | Runs where | What it proves |
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
-| Unit (JVM) | `pnpm test:unit` | CI `build` | pure Kotlin logic (episode layout parsing, …) |
-| Instrumented | `pnpm test:device` | emulator | the player plays the synthetic fixture: tracks, language switch, every subtitle, seek, no dropped frames |
+| Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
+| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; the bar switches tabs; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, sign-in form |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, survives Home + kill, follows into sites |
 | Download resume | `pnpm emulator:sign-in`, then `pnpm test:download-resume [file] [n]` | emulator | a real file through the edge survives n airplane-mode cuts, byte-identical to the origin |
+| Library live | `pnpm emulator:sign-in`, then `pnpm test:library-live [path]` | emulator | "usable on a flight": browse, download (~560 MB), sha256 = content_token, airplane mode, cold launch, watch |
 
 - CI compiles the instrumented tests (`:app:assembleDebugAndroidTest`) so they cannot rot,
   but does not run anything on an emulator: that needs a runner with KVM, which the fleet
@@ -65,7 +70,7 @@ on adb, and every device command below calls it first.
   instead of skipping. The key is the friend-tier `KEY_FRIEND_MOBILE_E2E`, fetched by
   dev-vault (`.devvault.json`) with this repo's own service key in `.devvault.local.json`
   (gitignored, minted by the operator). Never borrow another repo's vault identity.
-- **`@LiveProduction` tests** (the download spike) move real bandwidth through production
+- **`@LiveProduction` tests** (the download spike, the Library acceptance) move real bandwidth through production
   with a real session; Gradle excludes them from `pnpm test:device` and each runs only
   through its own script. They need the emulator signed in first (`pnpm emulator:sign-in`,
   which survives until something runs `pm clear`, e.g. `pnpm e2e`).
@@ -118,6 +123,22 @@ on adb, and every device command below calls it first.
   bare WebView is this one activity.
 - **All browser traffic goes through `hadoku.me/<prefix>/*`**, never `*.hadoku.me` direct
   subdomains (platform rule; see `../hadoku_site/AGENTS.md`).
+
+## The Library
+
+- **Where things live.** An episode is `getExternalFilesDir("episodes")/<mediaId>/`: the files
+  exactly as watchparty lays them out, plus `episode.json` (choices, per-file download ids and
+  state, `content_token`, saved position). No database: delete is one directory, space used
+  is one walk. `<mediaId>` is the catalog id, the path under watchparty's media root.
+- **One path to the truth.** `Downloads.refresh` reconciles every record with DownloadManager;
+  the Library screen calls it every second while visible and `DownloadReceiver` on
+  `DOWNLOAD_COMPLETE`. A file that fails `ERROR_CANNOT_RESUME` is re-fetched only if
+  `index.json`'s `content_token` is unchanged; otherwise the episode says to delete and
+  download again (never splice two encodes).
+- **Reads `tracks.json`, not `/api/media/<id>/tracks`**: the API keeps only English
+  subtitles for the watchparty UI.
+- Compose is pinned to BOM 2026.06.00 (Compose 1.11): newer BOMs need compileSdk 37 and AGP
+  9.1, which Capacitor 8's template does not use yet.
 
 ## Does NOT
 

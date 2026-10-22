@@ -3,13 +3,14 @@ package me.hadoku.app.download
 import android.app.DownloadManager
 import android.os.SystemClock
 import android.util.Log
-import android.webkit.CookieManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import me.hadoku.app.Device
+import me.hadoku.app.Hadoku
 import me.hadoku.app.LiveProduction
 import me.hadoku.app.player.PlayerActivity
 import org.junit.Assert.assertEquals
@@ -46,8 +47,8 @@ class DownloadResumeTest {
         val size = requireNotNull(args.getString("size")) { "-e size <bytes> is required" }.toLong()
         val sha256 = requireNotNull(args.getString("sha256")) { "-e sha256 <hex> is required" }
         val interruptions = args.getString("interruptions")?.toInt() ?: 2
-        val session = CookieManager.getInstance().getCookie(EpisodeDownloads.SITE)
-        assertTrue("no hadoku.me session on this device; run pnpm emulator:sign-in", session?.contains("hadoku_session=") == true)
+        val session = Hadoku.session()
+        assertTrue("no hadoku.me session on this device; run pnpm emulator:sign-in", session != null)
 
         val dest = File(PlayerActivity.episodeDir(context, mediaId), relPath).apply { delete() }
         val started = SystemClock.elapsedRealtime()
@@ -103,14 +104,11 @@ class DownloadResumeTest {
         }
     }
 
+    // Not Device.airplane: it waits for the app to see the change, and here
+    // the download's own PAUSED state is the signal being measured.
     private fun airplane(on: Boolean) {
-        shell("cmd connectivity airplane-mode ${if (on) "enable" else "disable"}")
+        Device.shell("cmd connectivity airplane-mode ${if (on) "enable" else "disable"}")
     }
-
-    private fun shell(command: String): String =
-        instrumentation.uiAutomation.executeShellCommand(command).let { fd ->
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).bufferedReader().use { it.readText() }
-        }
 
     /**
      * After the fact, what the edge does with a Range request for this file

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Hadoku.online(): a launch with no network opens the Library. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -25,6 +27,23 @@
             </intent-filter>
 
         </activity>
+
+        <activity
+            android:name=".library.LibraryActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode"
+            android:label="Library"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:exported="false" />
+
+        <!-- DownloadManager tells the app a file finished (or failed) with this
+             broadcast, addressed to this package. It only triggers a refresh. -->
+        <receiver
+            android:name=".library.DownloadReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".player.PlayerActivity"

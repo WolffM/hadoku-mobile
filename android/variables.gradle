@@ -16,4 +16,8 @@ ext {
     kotlinVersion = '2.2.20'
     media3Version = '1.11.1'
     androidxTestVersion = '1.7.0'
+    composeBomVersion = '2026.06.00'
+    activityComposeVersion = '1.11.0'
+    lifecycleVersion = '2.10.0'
+    orgJsonVersion = '20260814'
 }

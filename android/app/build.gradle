@@ -2,6 +2,7 @@ import groovy.json.JsonSlurper
 
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 // package.json is the one place the version lives. versionName is it verbatim;
 // versionCode is derived (1.2.3 -> 1002003) so it rises with every release
@@ -41,6 +42,9 @@ android {
             keyPassword System.getenv("KEY_PASSWORD")
         }
     }
+    buildFeatures {
+        compose = true
+    }
     buildTypes {
         release {
             if (System.getenv("KEYSTORE_PASSWORD")) {
@@ -70,11 +74,21 @@ dependencies {
     implementation project(':capacitor-android')
     implementation "androidx.media3:media3-exoplayer:$media3Version"
     implementation "androidx.media3:media3-ui:$media3Version"
+    implementation platform("androidx.compose:compose-bom:$composeBomVersion")
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.material:material-icons-core"
+    implementation "androidx.activity:activity-compose:$activityComposeVersion"
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:$lifecycleVersion"
     testImplementation "junit:junit:$junitVersion"
+    // android.jar's org.json is a stub on the JVM; the real one for unit tests.
+    testImplementation "org.json:json:$orgJsonVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test:core:$androidxTestVersion"
     androidTestImplementation "androidx.test:runner:$androidxTestVersion"
     androidTestImplementation "androidx.test:rules:$androidxTestVersion"
+    androidTestImplementation platform("androidx.compose:compose-bom:$composeBomVersion")
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4"
+    debugImplementation "androidx.compose.ui:ui-test-manifest"
     implementation project(':capacitor-cordova-android-plugins')
 }
 

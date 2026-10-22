@@ -14,6 +14,7 @@
     "test:device": "scripts/emulator.sh && cd android && ./gradlew :app:connectedDebugAndroidTest",
     "test:player-real": "scripts/emulator.sh && scripts/test-player-real.sh",
     "test:download-resume": "scripts/emulator.sh && scripts/test-download-resume.sh",
+    "test:library-live": "scripts/emulator.sh && scripts/test-library-live.sh",
     "e2e": "scripts/emulator.sh && (cd android && ./gradlew -q :app:installDebug) && playwright test -c e2e/playwright.config.ts --project shell",
     "e2e:signed-in": "scripts/emulator.sh && (cd android && ./gradlew -q :app:installDebug) && node ../hadoku_site/scripts/secrets/dev-vault.mjs -- playwright test -c e2e/playwright.config.ts --project signed-in",
     "release": "node scripts/release.mjs"

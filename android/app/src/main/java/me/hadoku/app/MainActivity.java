@@ -30,6 +30,10 @@ import com.getcapacitor.WebViewListener;
  * And it owns Back: Capacitor core leaves Back to its optional App plugin, so
  * without this Back on any site left the app instead of returning to the page
  * before it. WebView history first; at the launcher, Android's own Back.
+ *
+ * Under the page sits the app's bar, Hadoku and Library (ShellBar). Remote
+ * mode has no offline page of its own, only a browser error, so a launch with
+ * no network opens the Library, which works offline.
  */
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
@@ -38,6 +42,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ShellBar.install(this);
+        if (savedInstanceState == null && !Hadoku.online(this)) {
+            ShellBar.openLibrary(this);
+        }
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {

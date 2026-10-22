@@ -1,8 +1,9 @@
 # Handoff — hadoku-mobile, 2026-10-21
 
-You are picking up the one-app-for-the-ecosystem programme at the point where the shell is
-proven and enrolled, and the first native feature is not yet started. Everything below was
-verified on 2026-10-21 by the session that built it; nothing is a guess.
+You are picking up the one-app-for-the-ecosystem programme at the point where the shell and
+its first native feature, the offline Library, are built, tested against production, and
+released as v0.1.0. Everything below was verified on 2026-10-21/22 by the session that built
+it; nothing is a guess.
 
 ## Read first, in this order
 
@@ -39,6 +40,9 @@ The tracking issue is hadoku_site#470.
   `e2e/signed-in.spec.ts`, which passed 3/3 against production on 2026-10-21 with the
   dedicated `mobile-e2e` friend identity.
 - **Download spike: GO (2026-10-21).** Details under "2. Download spike" below.
+- **Library v1: DONE (2026-10-22), released in v0.1.0.** Details under "3. Library v1" below.
+- **v0.1.0 is the first release**, tagged by hand on the commit package.json already called
+  0.1.0; the signed APK is on the GitHub Release. The next one is `pnpm release patch|minor`.
 
 ## The work, in order
 
@@ -113,7 +117,30 @@ Prove Android's `DownloadManager` can fetch and RESUME through the edge:
 - Do NOT route this through filetransfer. It runs at Gokapi encryption level 1, which ignores
   Range entirely (measured). The design is direct from `/watchparty/media/*`.
 
-### 3. Library v1
+### 3. Library v1: DONE
+
+What shipped (see `AGENTS.md` "The Library" for how it is built):
+- A two-tab bar under the WebView (Hadoku, Library). A launch with no network opens the
+  Library. Back from the Library's first screen returns to the site.
+- Browse the catalog from `output/fmp4`; pick audio languages and subtitles (all by default);
+  the size and a free-space check (256 MB kept spare) before anything is enqueued.
+- Progress, "waiting for network", per-file failures with Retry, delete with confirm, and a
+  storage line (Library size, free on the phone).
+- Play from the Library, full screen, resuming where the viewer stopped (the last 30 s count
+  as finished).
+- Acceptance, `pnpm test:library-live` on the API 36 emulator against production: browse to
+  Frieren s01e01 through the UI, download 11 files / 562 MB in 39 s, video sha256 equals
+  `content_token`, airplane mode, cold launch opens the Library, the episode plays.
+
+Not in v1, in order of value:
+- **Background audio and lock-screen controls** (`MediaSessionService`). The player is a
+  plain activity: leaving it pauses.
+- A "Wi-Fi only" setting: downloads are allowed on metered networks.
+- Not yet seen on the Pixel 8a.
+- Records are `episode.json` per episode, not Room as the design said: the record lives
+  with its files, which is all v1 needs. Revisit if the Library grows queries.
+
+What was asked:
 
 Native Kotlin screens behind a bottom bar beside the WebView:
 
@@ -191,8 +218,6 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 
 - App Links: `public/.well-known/assetlinks.json` on hadoku.me plus an intent filter here, so
   hadoku.me links open the app. Pages already serves `.well-known`.
-- Cutting `v0.1.0` to put the first signed shell on the phone (`pnpm release patch` now does
-  the bump, tag and push; the first tag would be v0.1.1, or tag v0.1.0 by hand).
 - A KVM-capable runner label so `pnpm test:device` and `pnpm e2e` can run in CI. hokon has
   `/dev/kvm`; whether the claws do is unchecked.
 - iOS: not planned. $99/year, 90-day TestFlight builds, and App Store rule 4.2 against

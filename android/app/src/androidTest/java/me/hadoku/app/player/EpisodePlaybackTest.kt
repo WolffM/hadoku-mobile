@@ -14,6 +14,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+import me.hadoku.app.Fixture
 import kotlin.math.abs
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -43,7 +44,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class EpisodePlaybackTest {
     private val args = InstrumentationRegistry.getArguments()
-    private val mediaId = args.getString("mediaId") ?: FIXTURE
+    private val mediaId = args.getString("mediaId") ?: Fixture.ID
     private val playSeconds = args.getString("playSeconds")?.toLong() ?: 8
     private lateinit var files: EpisodeFiles
     private lateinit var scenario: ActivityScenario<PlayerActivity>
@@ -53,7 +54,7 @@ class EpisodePlaybackTest {
     fun launch() {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         val dir = PlayerActivity.episodeDir(target, mediaId)
-        if (mediaId == FIXTURE) copyFixture(dir)
+        if (mediaId == Fixture.ID) Fixture.copyTo(dir)
         files = EpisodeFiles.from(dir)
         scenario = ActivityScenario.launch(PlayerActivity.intent(target, mediaId))
         onPlayer {
@@ -176,19 +177,6 @@ class EpisodePlaybackTest {
         }
     }
 
-    private fun copyFixture(dir: File) {
-        val assets = InstrumentationRegistry.getInstrumentation().context.assets
-        fun copy(path: String, to: File) {
-            val children = assets.list(path).orEmpty()
-            if (children.isEmpty()) {
-                to.parentFile!!.mkdirs()
-                assets.open(path).use { input -> to.outputStream().use { input.copyTo(it) } }
-            } else children.forEach { copy("$path/$it", File(to, it)) }
-        }
-        dir.deleteRecursively()
-        copy("episodes/$FIXTURE", dir)
-    }
-
     private fun firstCueMs(vtt: File): Long {
         val (h, m, s, ms) = CUE_START.find(vtt.readText())!!.destructured
         return ((h.ifEmpty { "0" }.toLong() * 60 + m.toLong()) * 60 + s.toLong()) * 1_000 + ms.toLong()
@@ -196,7 +184,6 @@ class EpisodePlaybackTest {
 
     private companion object {
         const val TAG = "HadokuPlayerTest"
-        const val FIXTURE = "fixture-s01e01"
         /** Half a second at 24 fps. */
         const val MAX_CONSECUTIVE_DROPS = 12
         val CUE_START = Regex("""(?m)^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3}) -->""")
