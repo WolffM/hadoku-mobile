@@ -36,9 +36,9 @@ The tracking issue is hadoku_site#470.
 - **Shell fixes the e2e suite found:** Back on any site left the app (Capacitor core has no
   Back handling; it lives in the optional App plugin), and the session cookie was never
   flushed on pause. Both fixed natively in `MainActivity`. The flush is covered by
-  `e2e/signed-in.spec.ts`, which has NOT run yet: it needs an access key.
-- **Not started:** the DownloadManager spike, the native Library. Spike 2 needs a signed-in
-  emulator, i.e. a key, the same as the signed-in e2e.
+  `e2e/signed-in.spec.ts`, which passed 3/3 against production on 2026-10-21 with the
+  dedicated `mobile-e2e` friend identity.
+- **Download spike: GO (2026-10-21).** Details under "2. Download spike" below.
 
 ## The work, in order
 
@@ -75,7 +75,25 @@ Prove Media3 ExoPlayer plays watchparty's on-disk layout from local files:
   Kotlin, not a plugin. Do not spend time evaluating `@capgo/capacitor-video-player`; it is on
   the deprecated ExoPlayer 2.19 line and has no audio-track API.
 
-### 2. Download spike (half a day)
+### 2. Download spike: DONE, GO
+
+Result (`pnpm test:download-resume`, API 36 emulator, signed in as `mobile-e2e`):
+- `output_frag.mp4` (485,383,901 bytes), two airplane-mode cuts at ~1/3 and ~2/3, cold edge
+  cache: complete in 50 s, sha256 identical to the origin. Warm cache: 40 s, identical.
+- `audio/audio_jpn_2.m4a` (38,420,897 bytes), two cuts: identical. One resume landed on a
+  socket opened while the network was still coming back; DownloadManager sat on it ~4 min,
+  then retried with a fresh Range and finished (origin log shows the retry). Slow, not wrong.
+- The hazard did not happen. Cloudflare caches the `.mp4` (`cf-cache-status=HIT`, filled by
+  the download's own first Range-less GET) and still answered every resume with `206`; the
+  `.m4a` is not cached at all (`DYNAMIC`), so its resumes go to the origin. No
+  `ERROR_CANNOT_RESUME`. The edge-router Range bypass is not needed.
+- The media id in every URL is the catalog id, the episode's path under the media root
+  (`output/fmp4/anime/Frieren/frieren-s01e01`), not its folder name.
+- `index.json`'s `content_token` is the sha256 of `output_frag.mp4`.
+- `adb emu network speed` does not slow this AVD, so a cut lands mid-file only if the file
+  outlasts airplane mode's latency; a small file can finish first and the test says so.
+
+What was asked:
 
 Prove Android's `DownloadManager` can fetch and RESUME through the edge:
 
@@ -123,10 +141,10 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 - **Capacitor remote mode** is a works-but-unsupported configuration. Keep `CapacitorHttp`
   and `CapacitorCookies` disabled, never set `server.hostname` to the remote domain, keep
   `allowNavigation` empty. The bridge is injected into GET-loaded documents only.
-- **Signing in on an emulator** uses the site's own form at `/auth?return=/apps/`. The
-  2026-10-21 spike drove it over adb (uiautomator dump → tap by bounds → `input text` → tap).
-  Use your own friend key, or the hadoku_site agent's dev-vault identity, which signs in at
-  service tier; note that a browser session for that identity then exists for 30 days.
+- **Signing in on an emulator** is `pnpm emulator:sign-in`: the site's own form at
+  `/auth?return=/apps/`, driven by Playwright, with the friend-tier `mobile-e2e` key that
+  dev-vault fetches with this repo's own identity. Each sign-in leaves a 30-day session for
+  that identity in production.
 - **Insets.** `plugins.SystemBars.insetsHandling: native` keeps the page below the status bar
   with no site change. Leave it.
 - **UA.** `appendUserAgent: HadokuApp/<version>` is how request logs tell app sessions apart.
@@ -136,11 +154,11 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 
 - **Which tree is production.** hadoku_site moved its deployed services to
   `/home/hadoku/srv/<repo>` (2026-10); `~/repos/<repo>` is then a plain checkout that does
-  not advance with deploys. As of 2026-10-21 watchparty had NOT moved: its live server
-  runs from `~/repos/hadoku-watchparty/apps/server` with
-  `MEDIA_ROOT=~/repos/hadoku-watchparty/media`. Check the live process
-  (`pm2 jlist` for the wrapper, then the server's own `MEDIA_ROOT`) before trusting either.
-  The device-test scripts prefer `/srv` when it exists; `WATCHPARTY_MEDIA_ROOT` overrides.
+  not advance with deploys. Watchparty moved late on 2026-10-21: its live server runs from
+  `/home/hadoku/srv/hadoku-watchparty/apps/server` with `MEDIA_ROOT` under that tree, and
+  `~/repos/hadoku-watchparty/media` no longer holds the library. Check the live process's
+  cwd and `MEDIA_ROOT` (`/proc/<pid>/`) before trusting either. The device-test scripts
+  prefer `/srv` when it exists; `WATCHPARTY_MEDIA_ROOT` overrides.
 
 - Android SDK at `~/Android/Sdk` (cmdline-tools, platform 36, build-tools 36 and 35,
   platform-tools, emulator). `android/local.properties` points at it; gitignored.
@@ -171,16 +189,12 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 
 ## Decisions parked with the operator
 
-- Whether edge-router should bypass Cloudflare's cache for Range requests under
-  `/watchparty/media/*` (see spike 2).
 - App Links: `public/.well-known/assetlinks.json` on hadoku.me plus an intent filter here, so
   hadoku.me links open the app. Pages already serves `.well-known`.
 - Cutting `v0.1.0` to put the first signed shell on the phone (`pnpm release patch` now does
   the bump, tag and push; the first tag would be v0.1.1, or tag v0.1.0 by hand).
 - A KVM-capable runner label so `pnpm test:device` and `pnpm e2e` can run in CI. hokon has
   `/dev/kvm`; whether the claws do is unchecked.
-- A dedicated e2e identity (friend tier) for `pnpm e2e:signed-in` and spike 2, instead of a
-  person's own key.
 - iOS: not planned. $99/year, 90-day TestFlight builds, and App Store rule 4.2 against
   repackaged websites.
 

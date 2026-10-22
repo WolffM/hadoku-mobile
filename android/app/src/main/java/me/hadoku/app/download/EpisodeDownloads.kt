@@ -32,6 +32,7 @@ object EpisodeDownloads {
      */
     const val BUFFER_AHEAD_MS = "99999"
 
+    /** [mediaId] is watchparty's catalog id: the episode's path under its media root, e.g. output/fmp4/anime/Show/show-s01e01. */
     fun url(mediaId: String, relPath: String) = "$SITE/watchparty/media/$mediaId/$relPath"
 
     /** Returns the DownloadManager id. Throws if there is no hadoku.me session to send. */

@@ -7,6 +7,10 @@
 #
 # Defaults: Frieren s01e01's output_frag.mp4 (485 MB, under Cloudflare's 512 MB
 # cache cap, which is where the cold-cache Range hazard lives), 2 interruptions.
+# Each cut must land mid-file, so the file has to outlast airplane mode's
+# second or so of latency: the 38 MB audio file can finish first (the test
+# then fails saying so). `adb emu network speed` does not slow this AVD's
+# network, so there is no throttle to lean on.
 # Needs a signed-in emulator (`pnpm emulator:sign-in`). Installs with -r, which
 # keeps the app's data and so the session; never `pm clear` before this.
 set -euo pipefail
@@ -22,7 +26,10 @@ media=${WATCHPARTY_MEDIA_ROOT:-/home/hadoku/srv/hadoku-watchparty/media}
 [ -d "$media" ] || media=$HOME/repos/hadoku-watchparty/media
 src=${3:-"$media/output/fmp4/anime/Frieren/frieren-s01e01"}
 echo "episode source: $src"
-id=$(basename "$src")
+# Watchparty's media id is the episode's path under the media root, as the
+# catalog and /api/media/<id>/tracks name it.
+id=$(realpath --relative-to="$media" "$src")
+case $id in ..*) echo "episode dir must be under $media" >&2; exit 1;; esac
 
 size=$(stat -c %s "$src/$file")
 sha=$(sha256sum "$src/$file" | cut -d' ' -f1)

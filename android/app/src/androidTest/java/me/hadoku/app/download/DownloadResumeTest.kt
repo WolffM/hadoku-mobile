@@ -41,7 +41,7 @@ class DownloadResumeTest {
 
     @Test
     fun resumesThroughTheEdgeAfterLosingTheNetwork() {
-        val mediaId = args.getString("mediaId") ?: "frieren-s01e01"
+        val mediaId = args.getString("mediaId") ?: "output/fmp4/anime/Frieren/frieren-s01e01"
         val relPath = args.getString("file") ?: "output_frag.mp4"
         val size = requireNotNull(args.getString("size")) { "-e size <bytes> is required" }.toLong()
         val sha256 = requireNotNull(args.getString("sha256")) { "-e sha256 <hex> is required" }
@@ -57,7 +57,10 @@ class DownloadResumeTest {
                 val at = size * i / (interruptions + 1)
                 waitFor(id, "$at bytes") { it.bytes >= at }
                 airplane(true)
-                val paused = waitFor(id, "paused without network") { it.status == DownloadManager.STATUS_PAUSED }
+                val paused = waitFor(id, "paused without network") {
+                    check(it.status != DownloadManager.STATUS_SUCCESSFUL) { "finished before interruption $i landed; use a bigger file" }
+                    it.status == DownloadManager.STATUS_PAUSED
+                }
                 Log.i(TAG, "interruption $i: paused at ${paused.bytes}/$size reason=${paused.reason}")
                 SystemClock.sleep(5_000)
                 airplane(false)
