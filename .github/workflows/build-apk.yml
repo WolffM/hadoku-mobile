@@ -55,6 +55,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Typecheck the config and the e2e suite
+        run: pnpm typecheck
+
+      # package.json is the only version; a tag that disagrees with it would
+      # ship an APK whose versionName and user-agent lie about which release
+      # it is. scripts/release.mjs keeps the two in step.
+      - name: The tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
@@ -75,9 +85,14 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
+      # `:app:` explicitly: the generated capacitor-cordova-android-plugins
+      # module fails its own androidTest duplicate-class check (two old Kotlin
+      # stdlibs), and it has no tests of ours. The instrumented tests are
+      # compiled here so they cannot rot; they RUN on an emulator
+      # (`pnpm test:device`, `pnpm e2e`), which needs KVM.
+      - name: Unit tests, debug APK, and the instrumented tests compiled
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: cd android && ./gradlew --no-daemon assembleDebug
+        run: cd android && ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 
       - name: Upload debug APK
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
@@ -96,7 +111,7 @@ jobs:
 
       - name: Build signed release APK
         if: startsWith(github.ref, 'refs/tags/v')
-        run: cd android && ./gradlew --no-daemon assembleRelease
+        run: cd android && ./gradlew --no-daemon :app:assembleRelease
         env:
           KEYSTORE_FILE: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.HADOKU_MOBILE_KEYSTORE_PASSWORD }}
