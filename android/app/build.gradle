@@ -1,4 +1,14 @@
+import groovy.json.JsonSlurper
+
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+// package.json is the one place the version lives. versionName is it verbatim;
+// versionCode is derived (1.2.3 -> 1002003) so it rises with every release
+// without a second number to keep in step. The WebView's user-agent suffix
+// reads the same field (capacitor.config.ts).
+def appVersion = new JsonSlurper().parse(rootProject.file('../package.json')).version
+def (major, minor, patch) = appVersion.tokenize('.-')[0..2].collect { it as int }
 
 android {
     namespace = "me.hadoku.app"
@@ -7,8 +17,8 @@ android {
         applicationId "me.hadoku.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode major * 1000000 + minor * 1000 + patch
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -41,6 +51,10 @@ android {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
@@ -53,9 +67,13 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    implementation "androidx.media3:media3-exoplayer:$media3Version"
+    implementation "androidx.media3:media3-ui:$media3Version"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    androidTestImplementation "androidx.test:core:$androidxTestVersion"
+    androidTestImplementation "androidx.test:runner:$androidxTestVersion"
+    androidTestImplementation "androidx.test:rules:$androidxTestVersion"
     implementation project(':capacitor-cordova-android-plugins')
 }
 
