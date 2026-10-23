@@ -46,3 +46,15 @@ test('sign-in is the site’s own form, inside the app', async ({ app }) => {
   await page.waitForURL('https://hadoku.me/auth?return=/apps/');
   await expect(page.locator('#auth-key')).toBeVisible();
 });
+
+test('“Continue without signing in” comes back to the launcher, not the portfolio', async ({ app }) => {
+  const page = await app.launch();
+  await page.locator('#session').click();
+  await page.waitForURL('https://hadoku.me/auth?return=/apps/');
+  await page.locator('a.home-link').click();
+  await page.waitForURL(LAUNCHER);
+  // It went BACK to the launcher rather than stacking a second copy on top
+  // of the sign-in page, so Back from here leaves the app.
+  await app.back();
+  await expect.poll(() => app.isForeground()).toBe(false);
+});

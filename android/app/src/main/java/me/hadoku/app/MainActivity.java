@@ -1,11 +1,15 @@
 package me.hadoku.app;
 
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.CookieManager;
+import android.webkit.WebBackForwardList;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
 import com.getcapacitor.WebViewListener;
 
 /**
@@ -31,6 +35,11 @@ import com.getcapacitor.WebViewListener;
  * without this Back on any site left the app instead of returning to the page
  * before it. WebView history first; at the launcher, Android's own Back.
  *
+ * And it keeps the launcher as home. The site's "home" links point at
+ * hadoku.me/, which is the portfolio front page; in the app home is the
+ * launcher, so a navigation to the site root goes back to the launcher entry
+ * in history (or loads it, if there is none) instead.
+ *
  * Under the page sits the app's bar, Hadoku and Library (ShellBar). Remote
  * mode has no offline page of its own, only a browser error, so a launch with
  * no network opens the Library, which works offline.
@@ -38,10 +47,21 @@ import com.getcapacitor.WebViewListener;
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
     private static final String SITE = "https://hadoku.me";
+    private static final String LAUNCHER = SITE + "/apps/";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        bridge.setWebViewClient(new BridgeWebViewClient(bridge) {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (isSiteRoot(request.getUrl())) {
+                    goToLauncher(view);
+                    return true;
+                }
+                return super.shouldOverrideUrlLoading(view, request);
+            }
+        });
         ShellBar.install(this);
         if (savedInstanceState == null && !Hadoku.online(this)) {
             ShellBar.openLibrary(this);
@@ -72,6 +92,23 @@ public class MainActivity extends BridgeActivity {
                 );
             }
         });
+    }
+
+    private static boolean isSiteRoot(Uri url) {
+        String path = url.getPath();
+        return "https".equals(url.getScheme()) && "hadoku.me".equals(url.getHost()) && (path == null || path.isEmpty() || path.equals("/"));
+    }
+
+    /** Back to the most recent launcher entry, so Back from there still leaves the app. */
+    private static void goToLauncher(WebView webView) {
+        WebBackForwardList history = webView.copyBackForwardList();
+        for (int i = history.getCurrentIndex(); i >= 0; i--) {
+            if (LAUNCHER.equals(history.getItemAtIndex(i).getUrl())) {
+                webView.goBackOrForward(i - history.getCurrentIndex());
+                return;
+            }
+        }
+        webView.loadUrl(LAUNCHER);
     }
 
     @Override
