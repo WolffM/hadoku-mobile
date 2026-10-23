@@ -8,7 +8,7 @@ test('opens the launcher as the app, with the bridge in the page', async ({ app 
   await expect(page).toHaveURL(LAUNCHER);
   await expect(page).toHaveTitle('Apps');
   expect(await page.evaluate(() => (window as any).Capacitor?.isNativePlatform?.())).toBe(true);
-  expect(await page.evaluate(() => navigator.userAgent)).toMatch(new RegExp(`${USER_AGENT_SUFFIX.replace('.', '\\.')}$`));
+  expect(await page.evaluate(() => navigator.userAgent)).toMatch(new RegExp(`${USER_AGENT_SUFFIX.replaceAll('.', '\\.')}$`));
   expect(await app.nativeSession()).toBe('absent');
 });
 
