@@ -18,12 +18,10 @@ export PATH="${ANDROID_HOME:-$HOME/Android/Sdk}/platform-tools:$PATH"
 
 file=${1:-output_frag.mp4}
 interruptions=${2:-2}
-# The tree production serves from: /home/hadoku/srv once watchparty's deploy
-# moves there (hadoku_site moved its services in 2026-10), ~/repos until then.
+# The tree production serves from: watchparty deploys from ~/srv since 2026-10.
 # Confirm with the live server's MEDIA_ROOT, not by guessing; override with
 # WATCHPARTY_MEDIA_ROOT.
 media=${WATCHPARTY_MEDIA_ROOT:-/home/hadoku/srv/hadoku-watchparty/media}
-[ -d "$media" ] || media=$HOME/repos/hadoku-watchparty/media
 src=${3:-"$media/output/fmp4/anime/Frieren/frieren-s01e01"}
 echo "episode source: $src"
 # Watchparty's media id is the episode's path under the media root, as the
