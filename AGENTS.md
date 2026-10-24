@@ -13,8 +13,8 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `capacitor.config.ts` | `server.url`, UA suffix, System Bars insets. The whole product. |
 | `package.json` `version` | The ONLY version. Gradle derives versionName/versionCode from it, the UA suffix reads it |
 | `android/` | Capacitor-generated Android project (committed, like task-mobile) |
-| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/` goes back to `/apps/`), installs the bar, opens the Library when offline |
-| `android/app/src/main/java/me/hadoku/app/AppBar.kt` | The two-tab bar (Hadoku, Library) and the Compose theme |
+| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/` goes back to `/apps/`), opens the Library on `hadoku://library` or when offline |
+| `android/app/src/main/java/me/hadoku/app/Theme.kt` | The Compose theme (Material You colours) |
 | `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Native requests as the signed-in visitor (cookie read at use), `online()` |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
 | `android/app/src/main/java/me/hadoku/app/download/` | `EpisodeDownloads`: one file from `/watchparty/media/*` into the episode dir |
@@ -51,7 +51,7 @@ on adb, and every device command below calls it first.
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
 | Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
-| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the bar switches tabs; no network at launch opens the Library |
+| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, sign-in form, "Continue without signing in" returns to the launcher |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, survives Home + kill, follows into sites |
@@ -131,6 +131,10 @@ on adb, and every device command below calls it first.
 
 ## The Library
 
+- **The way in is watchparty.** There is no app bar: the WebView has the whole screen. Watchparty's
+  lobby renders a Library link only when the user agent carries `HadokuApp/`; it points at
+  `hadoku://library` (`LibraryActivity.LINK`), which `MainActivity` intercepts and never loads.
+  A launch with no network opens the Library directly. Its back arrow (and Back) returns to the page.
 - **Where things live.** An episode is `getExternalFilesDir("episodes")/<mediaId>/`: the files
   exactly as watchparty lays them out, plus `episode.json` (choices, per-file download ids and
   state, `content_token`, saved position). No database: delete is one directory, space used

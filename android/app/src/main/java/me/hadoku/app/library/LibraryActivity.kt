@@ -1,7 +1,7 @@
 package me.hadoku.app.library
 
 import android.content.Context
-import android.os.Build
+import android.content.Intent
 import android.os.Bundle
 import android.text.format.DateUtils
 import android.text.format.Formatter
@@ -70,30 +70,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.hadoku.app.AppBar
 import me.hadoku.app.Hadoku
 import me.hadoku.app.HadokuTheme
-import me.hadoku.app.Tab
 import me.hadoku.app.player.PlayerActivity
 import org.json.JSONException
 
 /**
  * The native Library: episodes saved for offline, and the watchparty catalog
- * to save them from. It sits above the shell's MainActivity, so the Hadoku
- * tab (and Back from the Library's first screen) is simply finish().
- * Everything here works without a network except Browse and Download.
+ * to save them from. The way in is watchparty's lobby, whose Library link
+ * (rendered only inside the app) navigates to [LINK], which the shell opens
+ * here; a launch with no network opens it directly. It sits above the shell's
+ * MainActivity, so leaving it (Back from its first screen, or a sign-in it
+ * asks for) is simply finish(). Everything here works without a network
+ * except Browse and Download.
  */
 class LibraryActivity : ComponentActivity() {
+    companion object {
+        /** The URL watchparty's lobby links to. Never loaded: MainActivity intercepts it. */
+        const val LINK = "hadoku://library"
+
+        @JvmStatic
+        fun intent(context: Context) = Intent(context, LibraryActivity::class.java)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
-        }
         setContent {
             HadokuTheme {
                 Library(
-                    onHadoku = ::finish,
+                    onExit = ::finish,
                     onPlay = { startActivity(PlayerActivity.intent(this, it)) },
                 )
             }
@@ -109,7 +115,7 @@ private sealed interface Screen {
 
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Library(onHadoku: () -> Unit, onPlay: (String) -> Unit) {
+private fun Library(onExit: () -> Unit, onPlay: (String) -> Unit) {
     val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
     val screen = stack.last()
     BackHandler(enabled = stack.size > 1) { stack.removeAt(stack.lastIndex) }
@@ -126,15 +132,12 @@ private fun Library(onHadoku: () -> Unit, onPlay: (String) -> Unit) {
                     )
                 },
                 navigationIcon = {
-                    if (stack.size > 1) {
-                        IconButton(onClick = { stack.removeAt(stack.lastIndex) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
+                    IconButton(onClick = { if (stack.size > 1) stack.removeAt(stack.lastIndex) else onExit() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
         },
-        bottomBar = { AppBar(Tab.LIBRARY) { onHadoku() } },
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (screen) {
@@ -146,12 +149,12 @@ private fun Library(onHadoku: () -> Unit, onPlay: (String) -> Unit) {
                     prefix = screen.prefix,
                     onDir = { stack.add(Screen.Browse(it.path, it.name)) },
                     onEpisode = { stack.add(Screen.Pick(it)) },
-                    onSignIn = onHadoku,
+                    onSignIn = onExit,
                 )
                 is Screen.Pick -> Pick(
                     entry = screen.entry,
                     onStarted = { stack.removeRange(1, stack.size) },
-                    onSignIn = onHadoku,
+                    onSignIn = onExit,
                 )
             }
         }

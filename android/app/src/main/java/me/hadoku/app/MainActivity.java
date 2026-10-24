@@ -11,6 +11,7 @@ import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 import com.getcapacitor.WebViewListener;
+import me.hadoku.app.library.LibraryActivity;
 
 /**
  * The shell. Everything a visitor sees is the live site at capacitor.config.json's
@@ -40,9 +41,10 @@ import com.getcapacitor.WebViewListener;
  * launcher, so a navigation to the site root goes back to the launcher entry
  * in history (or loads it, if there is none) instead.
  *
- * Under the page sits the app's bar, Hadoku and Library (ShellBar). Remote
- * mode has no offline page of its own, only a browser error, so a launch with
- * no network opens the Library, which works offline.
+ * And it opens the native Library, the one screen that is not the site: a
+ * navigation to LibraryActivity.LINK (watchparty's lobby shows that link only
+ * inside the app) starts it. Remote mode has no offline page of its own, only
+ * a browser error, so a launch with no network opens the Library too.
  */
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
@@ -55,6 +57,10 @@ public class MainActivity extends BridgeActivity {
         bridge.setWebViewClient(new BridgeWebViewClient(bridge) {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (LibraryActivity.LINK.equals(request.getUrl().toString())) {
+                    startActivity(LibraryActivity.intent(MainActivity.this));
+                    return true;
+                }
                 if (isSiteRoot(request.getUrl())) {
                     goToLauncher(view);
                     return true;
@@ -62,9 +68,8 @@ public class MainActivity extends BridgeActivity {
                 return super.shouldOverrideUrlLoading(view, request);
             }
         });
-        ShellBar.install(this);
         if (savedInstanceState == null && !Hadoku.online(this)) {
-            ShellBar.openLibrary(this);
+            startActivity(LibraryActivity.intent(this));
         }
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override

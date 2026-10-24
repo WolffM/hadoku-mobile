@@ -122,8 +122,11 @@ Prove Android's `DownloadManager` can fetch and RESUME through the edge:
 ### 3. Library v1: DONE
 
 What shipped (see `AGENTS.md` "The Library" for how it is built):
-- A two-tab bar under the WebView (Hadoku, Library). A launch with no network opens the
-  Library. Back from the Library's first screen returns to the site.
+- The way in is watchparty's lobby: a Library link it renders only inside the app
+  (`hadoku://library`, intercepted by the shell). A launch with no network opens the
+  Library. Back from the Library's first screen returns to the site. (v1 shipped a two-tab
+  bar under the WebView; it was removed 2026-10-24 because it jumped in and out with the
+  keyboard on the sign-in page.)
 - Browse the catalog from `output/fmp4`; pick audio languages and subtitles (all by default);
   the size and a free-space check (256 MB kept spare) before anything is enqueued.
 - Progress, "waiting for network", per-file failures with Retry, delete with confirm, and a
