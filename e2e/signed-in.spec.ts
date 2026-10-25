@@ -69,20 +69,13 @@ test('a launcher left in history from before sign-in shows the session when the 
 });
 
 test('a launcher that was showing "Sign in" picks up a session when the network comes back', async ({ app }) => {
-  const page = await app.launch();
+  const page = await signIn(app);
+  // Signed in, but the launcher's whoami at load gets no answer, as with no
+  // signal yet: it keeps saying "Sign in" over a live session.
+  await page.route('**/session/whoami', (route) => route.abort('internetdisconnected'));
+  await page.reload();
   await expect(page.locator('#session')).toHaveText('Sign in');
-  // The session arrives while this launcher stays rendered, as when its
-  // whoami at load had no signal to go out on.
-  const status = await page.evaluate(async (k) => {
-    const res = await fetch('/session/create', {
-      method: 'POST',
-      body: new URLSearchParams({ key: k, return: '/apps/' }),
-      redirect: 'manual',
-    });
-    return res.type === 'opaqueredirect' ? 'redirect' : String(res.status);
-  }, key!);
-  expect(status).toBe('redirect');
-  await expect(page.locator('#session')).toHaveText('Sign in');
+  await page.unroute('**/session/whoami');
   // The signal drops and returns. (Coming back from Home asks again too, but
   // that cannot be watched from here: while Playwright holds the page, the
   // WebView never reports it hidden.)
