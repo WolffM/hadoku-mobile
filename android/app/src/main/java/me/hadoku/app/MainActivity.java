@@ -26,11 +26,13 @@ import me.hadoku.app.library.LibraryActivity;
  * Only PRESENCE is logged. The cookie value is a credential and never reaches
  * a log line.
  *
- * It also flushes the cookie store whenever the app leaves the foreground.
- * Chromium writes cookies to disk only periodically, and Capacitor flushes
- * only on its CapacitorCookies path, which stays disabled here; without this a
- * sign-in followed by Android killing the backgrounded app could be lost, and
- * the next launch would be signed out.
+ * It also flushes the cookie store on every page load and whenever the app
+ * leaves the foreground. Chromium writes cookies to disk only periodically,
+ * and Capacitor flushes only on its CapacitorCookies path, which stays
+ * disabled here; without this a sign-in followed by Android killing the app
+ * could be lost, and the next launch would be signed out. On pause alone was
+ * not enough: a kill that lands before the pause (Home then an immediate
+ * force-stop, or a crash) lost a fresh session one time in three.
  *
  * And it owns Back: Capacitor core leaves Back to its optional App plugin, so
  * without this Back on any site left the app instead of returning to the page
@@ -88,6 +90,7 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onPageLoaded(WebView webView) {
                 String url = webView.getUrl();
+                CookieManager.getInstance().flush();
                 String cookies = CookieManager.getInstance().getCookie(SITE);
                 boolean session = cookies != null && cookies.contains("hadoku_session=");
                 Log.i(TAG, "page loaded url=" + url + " hadoku_session=" + (session ? "present" : "absent"));

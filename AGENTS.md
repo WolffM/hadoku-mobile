@@ -54,13 +54,16 @@ on adb, and every device command below calls it first.
 | Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, sign-in form, "Continue without signing in" returns to the launcher |
-| Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, survives Home + kill, follows into sites |
+| Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, is on disk from the first page load (survives an immediate kill), follows into sites; the launcher shows the session after Back, after a link home, and once the network returns |
 | Download resume | `pnpm emulator:sign-in`, then `pnpm test:download-resume [file] [n]` | emulator | a real file through the edge survives n airplane-mode cuts, byte-identical to the origin |
 | Library live | `pnpm emulator:sign-in`, then `pnpm test:library-live [path]` | emulator | "usable on a flight": browse, download (~560 MB), sha256 = content_token, airplane mode, cold launch, watch |
 
 - CI compiles the instrumented tests (`:app:assembleDebugAndroidTest`) so they cannot rot,
   but does not run anything on an emulator: that needs a runner with KVM, which the fleet
   has not been asked for.
+- **While Playwright holds the page the WebView never reports it hidden**, so nothing that
+  reacts to `visibilitychange` (the launcher re-checking whoami on resume) can be observed
+  from a test; that path was checked by hand.
 - **The e2e harness** (`e2e/app.ts`) resets the app with `pm clear` before every test,
   launches it over adb, and attaches Playwright's `_android` to the WebView by pid. Debug
   builds have WebView debugging on (Capacitor's default), which is what makes this possible;

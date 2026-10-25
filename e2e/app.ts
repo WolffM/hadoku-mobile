@@ -40,6 +40,11 @@ export class App {
     await this.shell(`am force-stop ${PKG}`);
   }
 
+  /** Airplane mode, as the quick-settings tile sets it. */
+  async airplane(on: boolean): Promise<void> {
+    await this.shell(`cmd connectivity airplane-mode ${on ? 'enable' : 'disable'}`);
+  }
+
   async home(): Promise<void> {
     await this.shell('input keyevent KEYCODE_HOME');
   }

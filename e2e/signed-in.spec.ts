@@ -31,8 +31,10 @@ test('the site’s sign-in reaches the native layer, and the launcher unlocks', 
 
 test('a session survives Android killing the app straight after sign-in', async ({ app }) => {
   await signIn(app);
-  // Home then an immediate kill is the worst case: Chromium would otherwise
-  // write the cookie to disk only on its own periodic flush.
+  // The shell writes cookies to disk on every page load, before this probe
+  // line; from then on a kill loses nothing, even one that lands before
+  // Android has paused the activity (Chromium alone writes only periodically).
+  expect(await app.nativeSession()).toBe('present');
   await app.home();
   await app.kill();
   const page = await app.launch();
@@ -45,4 +47,68 @@ test('the session follows the visitor into another site', async ({ app }) => {
   await page.goto('https://hadoku.me/watchparty/');
   const whoami = await page.evaluate(async () => (await fetch('/session/whoami', { credentials: 'include' })).json());
   expect(whoami.valid).toBe(true);
+});
+
+test('a launcher left in history from before sign-in shows the session when the app goes back to it', async ({ app }) => {
+  // The launcher as it was before sign-in: "Sign in", tiles locked.
+  const page = await app.launch();
+  await expect(page.locator('#session')).toHaveText('Sign in');
+  // Sign in somewhere else: an app's own sign-in wall returns to that app.
+  await page.goto('https://hadoku.me/auth?return=/watchparty/');
+  await page.locator('#auth-key').fill(key!);
+  await page.locator('#submit-btn').click();
+  await page.waitForURL('https://hadoku.me/watchparty/');
+  // A site link home: the shell goes BACK to that old launcher entry, which
+  // the WebView may restore from its back/forward cache without a reload.
+  await page.evaluate(() => {
+    location.href = '/';
+  });
+  await page.waitForURL(LAUNCHER);
+  await expect(page.locator('#session')).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('a.app[data-tier="friend"].app--locked')).toHaveCount(0);
+});
+
+test('a launcher that was showing "Sign in" picks up a session when the network comes back', async ({ app }) => {
+  const page = await app.launch();
+  await expect(page.locator('#session')).toHaveText('Sign in');
+  // The session arrives while this launcher stays rendered, as when its
+  // whoami at load had no signal to go out on.
+  const status = await page.evaluate(async (k) => {
+    const res = await fetch('/session/create', {
+      method: 'POST',
+      body: new URLSearchParams({ key: k, return: '/apps/' }),
+      redirect: 'manual',
+    });
+    return res.type === 'opaqueredirect' ? 'redirect' : String(res.status);
+  }, key!);
+  expect(status).toBe('redirect');
+  await expect(page.locator('#session')).toHaveText('Sign in');
+  // The signal drops and returns. (Coming back from Home asks again too, but
+  // that cannot be watched from here: while Playwright holds the page, the
+  // WebView never reports it hidden.)
+  await app.airplane(true);
+  try {
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+  } finally {
+    await app.airplane(false);
+  }
+  await expect(page.locator('#session')).toHaveAttribute('aria-current', 'true', { timeout: 30_000 });
+  await expect(page.locator('a.app[data-tier="friend"].app--locked')).toHaveCount(0);
+});
+
+test('Back after signing in steps past the sign-in page to a launcher that shows the session', async ({ app }) => {
+  const page = await app.launch();
+  await expect(page.locator('#session')).toHaveText('Sign in');
+  await page.locator('#session').click();
+  await page.waitForURL('https://hadoku.me/auth?return=/apps/');
+  await page.locator('#auth-key').fill(key!);
+  await page.locator('#submit-btn').click();
+  await page.waitForURL(LAUNCHER);
+  await page.goto('https://hadoku.me/watchparty/');
+  // Back, as a person presses it, until the launcher: never stuck on /auth.
+  await expect(async () => {
+    if (page.url() !== LAUNCHER) await app.back();
+    expect(page.url()).toBe(LAUNCHER);
+  }).toPass({ timeout: 20_000, intervals: [1_500] });
+  await expect(page.locator('#session')).toHaveAttribute('aria-current', 'true');
 });
