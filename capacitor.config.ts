@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
-// package.json is the one place the version lives (android/app/build.gradle
-// reads it too), so the user-agent suffix request logs key on can't drift
-// from the APK's versionName.
-import { version } from './package.json';
+// The same APP_VERSION_NAME android/app/build.gradle makes the versionName,
+// so the user-agent suffix request logs key on can't drift from the APK. CI
+// sets it at release time (scripts/release-version.mjs); nothing commits it.
+const version = process.env.APP_VERSION_NAME ?? '0.0.0-dev';
 
 const config: CapacitorConfig = {
   appId: 'me.hadoku.app',

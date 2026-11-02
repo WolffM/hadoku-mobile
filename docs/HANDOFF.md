@@ -185,7 +185,7 @@ Native Kotlin screens behind a bottom bar beside the WebView:
 - **Insets.** `plugins.SystemBars.insetsHandling: native` keeps the page below the status bar
   with no site change. Leave it.
 - **UA.** `appendUserAgent: HadokuApp/<version>` is how request logs tell app sessions apart.
-  It reads `package.json`'s version, so `pnpm release` bumps it with everything else.
+  It reads `APP_VERSION_NAME`, which the release run computes; a local build says `0.0.0-dev`.
 
 ## Tooling on hokon
 

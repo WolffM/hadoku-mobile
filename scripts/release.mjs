@@ -1,40 +1,21 @@
 #!/usr/bin/env node
-// Cuts a release: bumps package.json (the only version anywhere — Gradle and
-// the user-agent suffix read it), commits, tags v<version>, pushes both. The
-// tag is what makes CI build the signed APK and attach it to a GitHub Release.
+// Cuts a release without editing anything in the repo:
 //
-//   pnpm release patch|minor|major
+//   pnpm release patch|minor|major|X.Y.Z
 //
-// Refuses unless the tree is clean and HEAD is exactly origin/main, so a tag
-// always names a commit that has already been through the `build` gate.
+// Dispatches build-apk.yml on main with `release=<arg>`. That run computes the
+// version from the newest v* tag (scripts/release-version.mjs), runs the full
+// gate, builds the signed APK with that versionName/versionCode, and creates
+// the tag and the GitHub Release on the sha it built. No version is committed.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
 
-const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
-const fail = (msg) => {
-  console.error(`release: ${msg}`);
+const request = process.argv[2];
+if (!/^(patch|minor|major|\d+\.\d+\.\d+)$/.test(request ?? '')) {
+  console.error('usage: pnpm release patch|minor|major|X.Y.Z');
   process.exit(1);
-};
+}
 
-const part = process.argv[2];
-if (!['patch', 'minor', 'major'].includes(part)) fail('usage: pnpm release patch|minor|major');
-
-if (git('status', '--porcelain')) fail('working tree is not clean');
-git('fetch', '--quiet', 'origin', 'main');
-if (git('rev-parse', 'HEAD') !== git('rev-parse', 'origin/main')) fail('HEAD is not origin/main; integrate first');
-
-const pkgPath = new URL('../package.json', import.meta.url);
-const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-const [major, minor, patch] = pkg.version.split('.').map(Number);
-const next = { major: `${major + 1}.0.0`, minor: `${major}.${minor + 1}.0`, patch: `${major}.${minor}.${patch + 1}` }[part];
-const tag = `v${next}`;
-if (git('tag', '--list', tag)) fail(`${tag} already exists`);
-
-pkg.version = next;
-writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
-git('add', 'package.json');
-git('commit', '--quiet', '-m', `release: ${tag}`);
-git('tag', '-a', tag, '-m', `hadoku-mobile ${tag}`);
-git('push', '--quiet', 'origin', 'HEAD:main');
-git('push', '--quiet', 'origin', tag);
-console.log(`released ${tag}: CI builds the signed APK and attaches it to the GitHub Release`);
+execFileSync('gh', ['workflow', 'run', 'build-apk.yml', '--repo', 'WolffM/hadoku-mobile', '--ref', 'main', '-f', `release=${request}`], {
+  stdio: 'inherit',
+});
+console.log('dispatched: `gh run list --repo WolffM/hadoku-mobile --workflow build-apk.yml --limit 1` shows the run');

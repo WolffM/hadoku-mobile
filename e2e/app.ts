@@ -1,10 +1,11 @@
 import { test as base, expect } from '@playwright/test';
 import { _android, type AndroidDevice, type Page } from 'playwright';
-import { version } from '../package.json';
 
 export const PKG = 'me.hadoku.app';
 export const LAUNCHER = 'https://hadoku.me/apps/';
-export const USER_AGENT_SUFFIX = `HadokuApp/${version}`;
+// The installed APK's suffix: capacitor.config.ts falls back to the same
+// development identity when APP_VERSION_NAME is unset, as it is for a local build.
+export const USER_AGENT_SUFFIX = `HadokuApp/${process.env.APP_VERSION_NAME ?? '0.0.0-dev'}`;
 
 /**
  * The installed debug APK on the one attached device or emulator, driven the

@@ -1,15 +1,15 @@
-import groovy.json.JsonSlurper
-
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
-// package.json is the one place the version lives. versionName is it verbatim;
-// versionCode is derived (1.2.3 -> 1002003) so it rises with every release
-// without a second number to keep in step. The WebView's user-agent suffix
-// reads the same field (capacitor.config.ts).
-def appVersion = new JsonSlurper().parse(rootProject.file('../package.json')).version
-def (major, minor, patch) = appVersion.tokenize('.-')[0..2].collect { it as int }
+// The version is computed by CI at release time and never committed
+// (scripts/release-version.mjs): APP_VERSION_NAME is the release, e.g. 0.1.6,
+// and APP_VERSION_CODE is major*1e6 + minor*1e3 + patch, so it rises with
+// every release. A build without them (local, or CI on a push) is the
+// development identity, 0.0.0-dev / 1. capacitor.config.ts reads the same
+// APP_VERSION_NAME for the user-agent suffix.
+def appVersion = System.getenv('APP_VERSION_NAME') ?: '0.0.0-dev'
+def appVersionCode = (System.getenv('APP_VERSION_CODE') ?: '1') as int
 
 android {
     namespace = "me.hadoku.app"
@@ -18,7 +18,7 @@ android {
         applicationId "me.hadoku.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode major * 1000000 + minor * 1000 + patch
+        versionCode appVersionCode
         versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments notAnnotation: 'me.hadoku.app.LiveProduction'

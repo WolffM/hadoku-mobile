@@ -1,6 +1,5 @@
 {
   "name": "hadoku-mobile",
-  "version": "0.1.5",
   "private": true,
   "description": "One Android app for every hadoku.me site: a Capacitor WebView shell over the live launcher, native only where the web cannot go.",
   "scripts": {
@@ -8,6 +7,7 @@
     "android:build": "cd android && ./gradlew :app:assembleDebug",
     "android:release": "cd android && ./gradlew :app:assembleRelease",
     "typecheck": "tsc -p tsconfig.json",
+    "test:release-version": "node --test scripts/release-version.test.mjs",
     "test:unit": "cd android && ./gradlew :app:testDebugUnitTest",
     "emulator": "scripts/emulator.sh",
     "emulator:sign-in": "scripts/emulator.sh && (cd android && ./gradlew -q :app:installDebug) && node ../hadoku_site/scripts/secrets/dev-vault.mjs -- node scripts/emulator-sign-in.mjs",

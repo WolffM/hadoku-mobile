@@ -11,7 +11,7 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | Path | Purpose |
 | --- | --- |
 | `capacitor.config.ts` | `server.url`, UA suffix, System Bars insets. The whole product. |
-| `package.json` `version` | The ONLY version. Gradle derives versionName/versionCode from it, the UA suffix reads it |
+| (no committed version) | The version is computed by CI at release time (`scripts/release-version.mjs`) and reaches Gradle and the UA suffix as `APP_VERSION_NAME` / `APP_VERSION_CODE`. Nothing in the repo is ever edited to release |
 | `android/` | Capacitor-generated Android project (committed, like task-mobile) |
 | `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/` goes back to `/apps/`), opens the Library on `hadoku://library` or when offline |
 | `android/app/src/main/java/me/hadoku/app/Theme.kt` | The Compose theme (Material You colours) |
@@ -22,7 +22,7 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `android/app/src/test/` | JVM unit tests |
 | `android/app/src/androidTest/` | Instrumented tests; `assets/episodes/fixture-s01e01` is a synthetic episode |
 | `e2e/` | Playwright driving the real WebView inside the installed debug APK |
-| `scripts/` | `emulator.sh`, `emulator-sign-in.mjs`, the device-test scripts, `make-fixture-episode.sh`, `release.mjs` |
+| `scripts/` | `emulator.sh`, `emulator-sign-in.mjs`, the device-test scripts, `make-fixture-episode.sh`, `release.mjs` (dispatches a release), `release-version.mjs` (computes one) |
 | `www/` | One placeholder page. Never shown: `server.url` replaces it |
 
 ## Commands
@@ -32,7 +32,7 @@ pnpm install
 pnpm sync                      # cap sync android: copies capacitor.config.ts into the APK
 pnpm android:build             # debug APK → android/app/build/outputs/apk/debug/app-debug.apk
 pnpm android:release           # release APK; signed only with the keystore env (see CI)
-pnpm release patch|minor|major # bump, commit, tag v*, push: CI builds + publishes the signed APK
+pnpm release patch|minor|major|X.Y.Z  # dispatch build-apk.yml on main: CI computes the version, tags, publishes the signed APK
 ```
 
 Always name Gradle tasks with `:app:`. Unqualified tasks also run in the generated
@@ -89,8 +89,14 @@ on adb, and every device command below calls it first.
 ## CI, secrets and the fleet
 
 - `build-apk.yml` is the gate AND the ship path: every push and PR builds a debug APK
-  (artifact `hadoku-debug-apk`); a `v*` tag builds the signed release and attaches it to a
-  GitHub Release. hadoku_site's `repo-policy-manifest.json` requires the `build` context on
+  (artifact `hadoku-debug-apk`, versionName `0.0.0-dev`, versionCode 1).
+- **Releasing is the operator's moment and edits nothing.** `pnpm release patch` (or
+  `minor`, `major`, an exact `X.Y.Z`) runs `gh workflow run build-apk.yml --ref main -f
+  release=<arg>`. That run reads the newest `vX.Y.Z` tag on origin, steps it, runs the full
+  gate, builds the signed APK with versionName = the version and versionCode =
+  major*1e6 + minor*1e3 + patch (so it rises past every earlier release; v0.1.5 was 1005),
+  then creates the `v<version>` tag and the GitHub Release on the sha it built. Never edit a
+  version into a file and never push a `v*` tag by hand: a pushed tag triggers nothing. hadoku_site's `repo-policy-manifest.json` requires the `build` context on
   `main`, and `ci-watch` watches this workflow. Runners come from the fleet via
   `vars.CI_RUNNER`, which mgmt-api writes; never hardcode a runner label.
 - **Four repo secrets, none typed by hand.** `KEY_SERVICE_MOBILE` is the identity
