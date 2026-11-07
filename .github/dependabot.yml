@@ -1,0 +1,14 @@
+# Bumps the third-party actions pinned by commit SHA (# vX.Y.Z comments).
+# Only those: GitHub's own actions and WolffM/* stay on major tags.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: "android-actions/setup-android"
+      - dependency-name: "softprops/action-gh-release"
+    groups:
+      pinned-actions:
+        patterns: ["*"]
