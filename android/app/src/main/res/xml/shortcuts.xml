@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: "Home" returns to the launcher from wherever the
+     app was left, however deep the history. MainActivity.HOME handles it. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="home"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_home"
+        android:shortcutShortLabel="@string/shortcut_home">
+        <intent
+            android:action="me.hadoku.app.HOME"
+            android:targetPackage="me.hadoku.app"
+            android:targetClass="me.hadoku.app.MainActivity" />
+    </shortcut>
+</shortcuts>

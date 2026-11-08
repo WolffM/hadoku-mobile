@@ -40,6 +40,31 @@ test('Back on the launcher leaves the app instead of stranding a blank page', as
   await expect.poll(() => app.isForeground()).toBe(false);
 });
 
+test('the icon’s “Home” shortcut returns to the launcher from deep in a site, and Back then leaves', async ({ app }) => {
+  const page = await app.launch();
+  await page.locator('a.app[href="/resume"]').click();
+  await page.waitForURL('https://hadoku.me/resume**');
+  // Two more pages of history between the launcher and here.
+  await page.goto('https://hadoku.me/auth?return=/resume');
+  await page.goto('https://hadoku.me/resume/#again');
+  await app.home();
+
+  await app.homeShortcut();
+  await page.waitForURL(LAUNCHER);
+  expect(await app.isForeground()).toBe(true);
+  // It went BACK to the launcher entry, so nothing is stacked above it.
+  await app.back();
+  await expect.poll(() => app.isForeground()).toBe(false);
+});
+
+test('the “Home” shortcut on a cold start opens the launcher once', async ({ app }) => {
+  await app.homeShortcut();
+  const page = await app.launch();
+  await expect(page).toHaveURL(LAUNCHER);
+  await app.back();
+  await expect.poll(() => app.isForeground()).toBe(false);
+});
+
 test('sign-in is the site’s own form, inside the app', async ({ app }) => {
   const page = await app.launch();
   await page.locator('#session').click();

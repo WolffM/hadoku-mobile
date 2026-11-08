@@ -50,6 +50,11 @@ export class App {
     await this.shell('input keyevent KEYCODE_HOME');
   }
 
+  /** The app icon's long-press "Home" shortcut, as res/xml/shortcuts.xml sends it. */
+  async homeShortcut(): Promise<void> {
+    await this.shell(`am start -W -a ${PKG}.HOME -n ${PKG}/.MainActivity`);
+  }
+
   async back(): Promise<void> {
     await this.shell('input keyevent KEYCODE_BACK');
   }

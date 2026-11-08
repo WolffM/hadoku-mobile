@@ -13,7 +13,7 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `capacitor.config.ts` | `server.url`, UA suffix, System Bars insets. The whole product. |
 | (no committed version) | The version is computed by CI at release time (`scripts/release-version.mjs`) and reaches Gradle and the UA suffix as `APP_VERSION_NAME` / `APP_VERSION_CODE`. Nothing in the repo is ever edited to release |
 | `android/` | Capacitor-generated Android project (committed, like task-mobile) |
-| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/` goes back to `/apps/`), opens the Library on `hadoku://library` or when offline |
+| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/`, or the app icon's long-press "Home" shortcut in `res/xml/shortcuts.xml`, goes back to `/apps/`), opens the Library on `hadoku://library` or when offline |
 | `android/app/src/main/java/me/hadoku/app/Theme.kt` | The Compose theme (Material You colours) |
 | `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Native requests as the signed-in visitor (cookie read at use), `online()` |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
@@ -53,7 +53,7 @@ on adb, and every device command below calls it first.
 | Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
 | Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
-| Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, sign-in form, "Continue without signing in" returns to the launcher |
+| Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, the "Home" shortcut (warm and cold), sign-in form, "Continue without signing in" returns to the launcher |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, is on disk from the first page load (survives an immediate kill), follows into sites; the launcher shows the session after Back, after a link home, and once the network returns |
 | Download resume | `pnpm emulator:sign-in`, then `pnpm test:download-resume [file] [n]` | emulator | a real file through the edge survives n airplane-mode cuts, byte-identical to the origin |
 | Library live | `pnpm emulator:sign-in`, then `pnpm test:library-live [path]` | emulator | "usable on a flight": browse, download (~560 MB), sha256 = content_token, airplane mode, cold launch, watch |

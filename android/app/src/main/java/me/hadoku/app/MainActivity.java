@@ -1,5 +1,6 @@
 package me.hadoku.app;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -43,6 +44,10 @@ import me.hadoku.app.library.LibraryActivity;
  * launcher, so a navigation to the site root goes back to the launcher entry
  * in history (or loads it, if there is none) instead.
  *
+ * The app icon's long-press "Home" shortcut (res/xml/shortcuts.xml) sends
+ * HOME, which does the same from wherever the app was left. A cold start
+ * needs nothing: server.url is the launcher.
+ *
  * And it opens the native Library, the one screen that is not the site: a
  * navigation to LibraryActivity.LINK (watchparty's lobby shows that link only
  * inside the app) starts it. Remote mode has no offline page of its own, only
@@ -52,6 +57,8 @@ public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
     private static final String SITE = "https://hadoku.me";
     private static final String LAUNCHER = SITE + "/apps/";
+    /** The launcher shortcut's action. */
+    static final String HOME = "me.hadoku.app.HOME";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -117,6 +124,17 @@ public class MainActivity extends BridgeActivity {
             }
         }
         webView.loadUrl(LAUNCHER);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // BridgeActivity also calls this from onCreate with the launch intent,
+        // before the first page exists; that page is already the launcher.
+        if (bridge != null && intent != null && HOME.equals(intent.getAction())) {
+            WebView webView = bridge.getWebView();
+            if (webView.copyBackForwardList().getSize() > 0) goToLauncher(webView);
+        }
     }
 
     @Override
