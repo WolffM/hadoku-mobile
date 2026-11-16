@@ -51,7 +51,7 @@ on adb, and every device command below calls it first.
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
 | Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
-| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
+| Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); an episode longer than the player reads ahead shows its length from the start, seeks past the buffer and ends; a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, the "Home" shortcut (warm and cold), sign-in form, "Continue without signing in" returns to the launcher |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, is on disk from the first page load (survives an immediate kill), follows into sites; the launcher shows the session after Back, after a link home, and once the network returns |
@@ -81,6 +81,11 @@ on adb, and every device command below calls it first.
   watchparty's ffmpeg flags (`processing_meta.json`, schema v3-fragmented-audio), including
   the per-language sample rates and the QuickTime chapter track inside each audio file.
   Change the flags there if watchparty's ingest schema changes.
+- **Two fixtures, and the long one is not optional.** `fixture-s01e01` (20 s) is read to its end
+  the moment it opens, so the player measures its length itself; `fixture-long` (150 s, 2.5 MB of
+  video) is not, like every real episode. ExoPlayer stops reading ahead at 50 s buffered but checks
+  only once per megabyte, so a long episode of a few hundred KB is still read whole and tests
+  nothing; `FullLengthEpisodeTest` asserts its own premise (buffered well short of the end).
 - `pnpm test:player-real` installs the APKs itself: Gradle's connected tests uninstall the
   app afterwards, which deletes everything pushed under its external files dir.
 - Screenshots the player tests take land in
@@ -162,6 +167,13 @@ on adb, and every device command below calls it first.
   screen returns). The service is not exported: system controls use the session's platform
   token. Instrumented tests read the service's ExoPlayer (`PlaybackService.player`) for
   exact positions and decoder counters.
+- **The player gets an episode's length from `episode.json`, not from the file.** Watchparty's
+  `output_frag.mp4` states no duration (empty moov, no mehd, no sidx: its own player reads
+  `index.json`). Left alone ExoPlayer learns the length only after reading the file to its end,
+  and until then the time bar shows a total of 00:00 and does not move, on every real episode
+  (first user report, 2026-11-16). `episodeMediaSource` wraps the video in a `ClippingMediaSource`
+  ending at the record's `durationMs` (index.json's `duration_ms`). An episode with no record
+  plays without a known length.
 - Compose is pinned to BOM 2026.06.00 (Compose 1.11): newer BOMs need compileSdk 37 and AGP
   9.1, which Capacitor 8's template does not use yet.
 

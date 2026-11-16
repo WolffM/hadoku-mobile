@@ -131,7 +131,12 @@ class PlaybackService : MediaSessionService() {
     /** A MediaItem's mediaId names an episode dir; this turns it into the merged episode source. */
     private class EpisodeSources(private val context: Context) : MediaSource.Factory {
         override fun createMediaSource(mediaItem: MediaItem): MediaSource =
-            episodeMediaSource(context, mediaItem, EpisodeFiles.from(PlayerActivity.episodeDir(context, mediaItem.mediaId)))
+            episodeMediaSource(
+                context,
+                mediaItem,
+                EpisodeFiles.from(PlayerActivity.episodeDir(context, mediaItem.mediaId)),
+                Downloads.store(context).get(mediaItem.mediaId)?.durationMs,
+            )
 
         override fun getSupportedTypes() = intArrayOf(C.CONTENT_TYPE_OTHER)
 

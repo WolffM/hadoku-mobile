@@ -70,3 +70,23 @@ for lang in eng ger; do
 done
 
 du -sh "$out"
+
+# A second, 150-second episode that the player cannot read to the end at
+# start, the way it does the 20-second one. Real episodes are like this, and
+# it is the only case that shows what the player knows about an episode's
+# length before it has read all of it. ExoPlayer stops reading ahead at 50 s
+# buffered, but only checks once per megabyte read, so the video has to be
+# megabytes, not just long: a black picture of any length is read whole.
+long="$(dirname "$out")/fixture-long"
+rm -rf "$long"
+mkdir -p "$long/audio"
+ffmpeg -v error -f lavfi -i "testsrc2=size=320x180:rate=24000/1001:duration=150" \
+  -c:v libx264 -preset medium -crf 30 -pix_fmt yuv420p \
+  -x264-params keyint=48:min-keyint=48:scenecut=0:bframes=0 \
+  -movflags +faststart+frag_keyframe+empty_moov+default_base_moof "${frag[@]}" \
+  -metadata:s:v:0 language=und -map_metadata -1 -fflags +bitexact \
+  "$long/output_frag.mp4"
+ffmpeg -v error -f lavfi -i "sine=frequency=220:sample_rate=48000:duration=150" \
+  -map 0:a -map_metadata -1 -c:a aac -b:a 64k -ac 2 -metadata:s:a:0 language=jpn \
+  -movflags +empty_moov+default_base_moof "${frag[@]}" -fflags +bitexact \
+  "$long/audio/audio_jpn_1.m4a"

@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.source.ClippingMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -19,11 +20,19 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
  * switches language without re-preparing. All files start at t=0 (ingest
  * writes them that way), so no period offset is adjusted.
  *
+ * The video file states no duration: ingest muxes it with an empty moov and
+ * no mehd or sidx, because watchparty's own player reads the length from
+ * index.json. Left alone, ExoPlayer learns the length only once it has read
+ * the file to its end, which for a full episode is the credits; until then
+ * the time bar shows a total of 00:00 and does not move. So the video is
+ * given [durationMs], the same index.json figure, which the Library stored
+ * with the episode. Null (no record of the episode) leaves it as it is.
+ *
  * [item] carries the episode's mediaId and metadata; the video source takes
  * them over, so the player (and its media session) reports the episode.
  */
 @OptIn(UnstableApi::class)
-fun episodeMediaSource(context: Context, item: MediaItem, files: EpisodeFiles): MediaSource {
+fun episodeMediaSource(context: Context, item: MediaItem, files: EpisodeFiles, durationMs: Long?): MediaSource {
     val data = DefaultDataSource.Factory(context)
     val subtitles = files.subtitles.map {
         MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(it.file))
@@ -31,12 +40,15 @@ fun episodeMediaSource(context: Context, item: MediaItem, files: EpisodeFiles): 
             .setLanguage(it.language)
             .build()
     }
-    val video = DefaultMediaSourceFactory(data).createMediaSource(
+    val untimed = DefaultMediaSourceFactory(data).createMediaSource(
         item.buildUpon()
             .setUri(Uri.fromFile(files.video))
             .setSubtitleConfigurations(subtitles)
             .build()
     )
+    val video =
+        if (durationMs != null && durationMs > 0) ClippingMediaSource.Builder(untimed).setEndPositionMs(durationMs).build()
+        else untimed
     val progressive = ProgressiveMediaSource.Factory(data)
     val audio = files.audio.map { progressive.createMediaSource(MediaItem.fromUri(Uri.fromFile(it.file))) }
     return MergingMediaSource(video, *audio.toTypedArray())
