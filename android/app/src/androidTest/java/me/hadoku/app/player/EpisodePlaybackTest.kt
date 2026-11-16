@@ -1,6 +1,7 @@
 package me.hadoku.app.player
 
 import android.graphics.Bitmap
+import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
@@ -10,12 +11,16 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import me.hadoku.app.Device
 import me.hadoku.app.Fixture
+import me.hadoku.app.library.Downloads
+import me.hadoku.app.library.Episode
+import me.hadoku.app.library.EpisodeInfo
 import kotlin.math.abs
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -37,15 +42,22 @@ import org.junit.runner.RunWith
  * the total only has to stay low enough that the picture is still watchable.
  *
  * By default it plays the synthetic fixture bundled in the test APK. With
- * `-e mediaId <id>` it plays an episode already pushed into the app's
- * episodes dir instead (`pnpm test:player-real`), and `-e playSeconds <n>`
+ * `-e source <dir>` it plays a REAL episode instead (`pnpm test:player-real`):
+ * [dir] is on the device, readable by the shell, and holds the episode's
+ * files with its index.json and tracks.json. The test copies it into the
+ * Library itself and records it with the same parser a download uses, because
+ * the app cannot read files the shell pushed into its dir, and because the
+ * record is where the player gets the episode's length. `-e playSeconds <n>`
  * sets how long the drift check runs.
  */
 @OptIn(UnstableApi::class)
 @RunWith(AndroidJUnit4::class)
 class EpisodePlaybackTest {
     private val args = InstrumentationRegistry.getArguments()
-    private val mediaId = args.getString("mediaId") ?: Fixture.ID
+    private val source = args.getString("source")
+    private val mediaId = source?.let { "real/${it.trimEnd('/').substringAfterLast('/')}" } ?: Fixture.ID
+    /** index.json's duration for a real episode; null for the fixture, which has no index. */
+    private var recordedDurationMs: Long? = null
     private val playSeconds = args.getString("playSeconds")?.toLong() ?: 8
     private lateinit var files: EpisodeFiles
     private lateinit var scenario: ActivityScenario<PlayerActivity>
@@ -55,7 +67,7 @@ class EpisodePlaybackTest {
     fun launch() {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         val dir = PlayerActivity.episodeDir(target, mediaId)
-        if (mediaId == Fixture.ID) Fixture.copyTo(dir)
+        if (source == null) Fixture.copyTo(dir) else recordedDurationMs = importEpisode(source, dir)
         files = EpisodeFiles.from(dir)
         scenario = ActivityScenario.launch(PlayerActivity.intent(target, mediaId))
         Device.waitUntil("the service playing $mediaId", 10_000) {
@@ -72,7 +84,44 @@ class EpisodePlaybackTest {
     }
 
     @After
-    fun close() = scenario.close()
+    fun close() {
+        scenario.close()
+        // A real episode is hundreds of MB, copied in per test.
+        if (source != null) Downloads.store(InstrumentationRegistry.getInstrumentation().targetContext).delete(mediaId)
+    }
+
+    /** Copies [from] (a shell-readable dir on the device) into [dir] as the app, and records it as a finished download. */
+    private fun importEpisode(from: String, dir: File): Long {
+        val root = from.trimEnd('/')
+        dir.deleteRecursively()
+        val paths = Device.shell("find $root -type f").lines().filter { it.isNotBlank() }
+        require(paths.isNotEmpty()) { "nothing under $root on the device" }
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        for (path in paths) {
+            val to = File(dir, path.removePrefix("$root/")).also { it.parentFile!!.mkdirs() }
+            ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("cat $path"))
+                .use { input -> to.outputStream().use { input.copyTo(it) } }
+        }
+        val info = EpisodeInfo.parse(mediaId, File(dir, "index.json").readText(), File(dir, "tracks.json").readText())
+        val wanted = listOf(info.video) + info.audio.map { it.file } + info.subtitles.map { it.file }
+        Downloads.store(InstrumentationRegistry.getInstrumentation().targetContext).put(
+            Episode(
+                mediaId = mediaId,
+                title = mediaId.substringAfterLast('/'),
+                series = "real",
+                token = info.token,
+                durationMs = info.durationMs,
+                addedAt = System.currentTimeMillis(),
+                files = wanted.map {
+                    val file = File(dir, it.path)
+                    require(file.isFile) { "index.json names ${it.path}, which was not pushed" }
+                    Episode.FileState(it.path, file.length(), downloadId = -1, done = true)
+                },
+            )
+        )
+        require(info.durationMs > 0) { "index.json states no duration_ms" }
+        return info.durationMs
+    }
 
     @Test
     fun exposesExactlyTheEpisodesTracks() {
@@ -125,7 +174,12 @@ class EpisodePlaybackTest {
 
     @Test
     fun seeksAndKeepsPaceWithoutDroppingFrames() {
-        val target = onPlayer { it.duration } * 6 / 10
+        // Not a given: the video file states no length. A real episode's comes from
+        // its record, at once; the 20-second fixture's is measured once it is read whole.
+        waitFor("the episode's length") { it.duration != C.TIME_UNSET }
+        val duration = onPlayer { it.duration }
+        recordedDurationMs?.let { assertEquals("the length index.json records", it, duration) }
+        val target = duration * 6 / 10
         onPlayer { it.seekTo(target) }
         // currentPosition reads the seek target straight away (ExoPlayer masks
         // it), so "landed" means playing again from there, not a reading of it.
@@ -133,16 +187,32 @@ class EpisodePlaybackTest {
         val landed = onPlayer { it.currentPosition }
         assertTrue("seek to $target resumed at $landed", landed - target < 2_500)
 
+        // Why the clock ran slow, when it does: waiting on the file (rebuffers)
+        // points at the source; audio underruns with no rebuffer point at a
+        // starved device, which is what a loaded host does to the emulator.
+        var rebuffers = 0
+        var underruns = 0
+        val watch = object : AnalyticsListener {
+            override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
+                if (state == Player.STATE_BUFFERING) rebuffers++
+            }
+
+            override fun onAudioUnderrun(eventTime: AnalyticsListener.EventTime, bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) {
+                underruns++
+            }
+        }
+        onPlayer { it.addAnalyticsListener(watch) }
         val (pos0, wall0) = onPlayer { it.currentPosition } to SystemClock.elapsedRealtime()
-        val seconds = minOf(playSeconds, (onPlayer { it.duration } - pos0) / 1_000 - 2)
+        val seconds = minOf(playSeconds, (duration - pos0) / 1_000 - 2)
         SystemClock.sleep(seconds * 1_000)
         val (pos1, wall1) = onPlayer { it.currentPosition } to SystemClock.elapsedRealtime()
+        onPlayer { it.removeAnalyticsListener(watch) }
         val counters = onPlayer { it.videoDecoderCounters!!.also { c -> c.ensureUpdated() } }
         val rendered = counters.renderedOutputBufferCount
         val dropped = counters.droppedBufferCount
-        Log.i(TAG, "played ${pos1 - pos0} ms in ${wall1 - wall0} ms; video rendered=$rendered dropped=$dropped maxConsecutiveDropped=${counters.maxConsecutiveDroppedBufferCount}")
+        Log.i(TAG, "played ${pos1 - pos0} ms in ${wall1 - wall0} ms; video rendered=$rendered dropped=$dropped maxConsecutiveDropped=${counters.maxConsecutiveDroppedBufferCount}; rebuffers=$rebuffers audioUnderruns=$underruns")
 
-        assertTrue("media clock ran ${pos1 - pos0} ms in ${wall1 - wall0} ms", abs((pos1 - pos0) - (wall1 - wall0)) < 750)
+        assertTrue("media clock ran ${pos1 - pos0} ms in ${wall1 - wall0} ms ($rebuffers rebuffers, $underruns audio underruns)", abs((pos1 - pos0) - (wall1 - wall0)) < 750)
         val run = counters.maxConsecutiveDroppedBufferCount
         assertTrue("$run consecutive video frames dropped: video fell behind the audio clock", run <= MAX_CONSECUTIVE_DROPS)
         assertTrue("dropped $dropped of ${rendered + dropped} video frames", dropped * 5 <= rendered + dropped)

@@ -52,7 +52,7 @@ on adb, and every device command below calls it first.
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
 | Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
 | Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); an episode longer than the player reads ahead shows its length from the start, seeks past the buffer and ends; a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
-| Real media | `pnpm test:player-real [dir] [s]` | emulator / phone | the same test on a real pushed episode (default Frieren s01e01, 180 s) |
+| Real media | `pnpm test:player-real [media id or dir] [s]` | emulator / phone | the same four tests on a real episode fetched from production (default Frieren s01e01, 180 s): its length is index.json's from the start, and the seek and pace check run 60% of the way in |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, the "Home" shortcut (warm and cold), sign-in form, "Continue without signing in" returns to the launcher |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, is on disk from the first page load (survives an immediate kill), follows into sites; the launcher shows the session after Back, after a link home, and once the network returns |
 | Download resume | `pnpm emulator:sign-in`, then `pnpm test:download-resume [file] [n]` | emulator | a real file through the edge survives n airplane-mode cuts, byte-identical to the origin |
@@ -86,8 +86,24 @@ on adb, and every device command below calls it first.
   video) is not, like every real episode. ExoPlayer stops reading ahead at 50 s buffered but checks
   only once per megabyte, so a long episode of a few hundred KB is still read whole and tests
   nothing; `FullLengthEpisodeTest` asserts its own premise (buffered well short of the end).
-- `pnpm test:player-real` installs the APKs itself: Gradle's connected tests uninstall the
-  app afterwards, which deletes everything pushed under its external files dir.
+- **`pnpm test:player-real` fetches its own episode and imports it as the app.**
+  `scripts/fetch-episode.mjs` (needs `HADOKU_E2E_KEY`, so the script runs under dev-vault) takes
+  it from production the way the app's download does: one whole-file GET per file, rate-limited,
+  never a Range (the edge answers a Range on a large file with the whole file often enough to
+  matter; hadoku-watchparty AGENTS.md "Edge Range collapsing"), each file checked against
+  index.json's `part_sha256`, cached under `~/.cache/hadoku-mobile/episodes` and re-fetched when
+  the server's `content_token` changes. It moves 300-800 MB through production: one episode, never
+  a loop. The files are pushed to `/data/local/tmp` and the TEST copies them into the Library and
+  writes the record with `EpisodeInfo.parse`, for two reasons: a dir the shell creates under the
+  app's external files dir is not readable by the app (the player fails with "no output_frag.mp4"),
+  and without a record the player has no length for the episode, so the old version of this test
+  seeked to a target computed from "unknown" and passed.
+- **The pace check fails on a loaded host, and its log line says which kind of slow it was.**
+  hokon doubles as the CI backstop; at a load of 40-90 on 12 cores the emulator's software decoder
+  ran the real 1080p episode 2.5-14 s behind in 60 s, and within 20 ms once the load fell to ~20.
+  `rebuffers=0 audioUnderruns=0` on the `played … ms` line means the device was starved; rebuffers
+  mean the player was waiting on the file, which is a real fault. Check `uptime` before believing
+  a failure there. `ONLY=<test method>` runs one of the four.
 - Screenshots the player tests take land in
   `/sdcard/Android/data/me.hadoku.app/files/test-screenshots/<mediaId>/`.
 
