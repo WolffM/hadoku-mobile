@@ -1,7 +1,7 @@
 # Trivia
 
 - `v0.1.0` is a real tag on a real commit, but it was never a working
-  release: its signed build "opened the keystore but failed reading the
+  release. Its signed build "opened the keystore but failed reading the
   key with `HADOKU_MOBILE_KEY_PASSWORD`," because `keytool` ignores
   `-keypass` for a PKCS12 file, so the key's password was always the
   store's (`9d0885e`). `v0.1.1`, tagged 8 minutes 40 seconds later, is the

@@ -67,7 +67,7 @@ episode replaces whatever was already playing rather than queuing it.
 
 ## Trivia
 
-The app only has one screen that is not simply a page of the live site —
-the Library — and it exists because remote mode has no offline page of its
-own, only a browser error, so a launch with no network opens the Library
-instead (`0c0f49c`).
+The app has only one screen that is not simply a page of the live site: the
+Library. It exists because remote mode has no offline page of its own, only
+a browser error — so a launch with no network opens the Library instead
+(`0c0f49c`).

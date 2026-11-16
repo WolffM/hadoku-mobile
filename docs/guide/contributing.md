@@ -21,24 +21,20 @@ and fails a duplicate-class check on two old Kotlin stdlibs.
 
 ## Architecture map
 
-```
-capacitor.config.ts                    server.url, the UA suffix, system-bar insets — the whole shell config
-android/app/src/main/java/me/hadoku/app/
-  MainActivity.java                    the shell: logs the two startup probes, flushes cookies, owns Back,
-                                        keeps the launcher as home, opens the Library offline or on its deep link
-  Theme.kt                             the Compose theme
-  Hadoku.kt                            reads the session cookie at the moment it's needed; online()
-  library/                             Library v1: catalog + episode parsing, episode.json records,
-                                        DownloadManager orchestration, the Compose screens
-  download/EpisodeDownloads.kt         enqueues one file from watchparty's media route via DownloadManager
-  player/PlaybackService.kt            the one player: a Media3 MediaSessionService — background audio,
-                                        lock-screen controls, saved position
-  player/PlayerActivity.kt             the screen that connects to PlaybackService
-android/app/src/test/                  JVM unit tests
-android/app/src/androidTest/           instrumented tests; assets/episodes/fixture-s01e01 is a synthetic episode
-e2e/                                   Playwright, driving the real WebView inside the installed debug APK
-scripts/                               emulator.sh, release.mjs (dispatches a release), release-version.mjs (computes one)
-```
+| Path | What it is |
+| --- | --- |
+| `capacitor.config.ts` | `server.url`, the UA suffix, system-bar insets — the whole shell config |
+| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two startup probes, flushes cookies, owns Back, keeps the launcher as home, opens the Library offline or on its deep link |
+| `android/app/src/main/java/me/hadoku/app/Theme.kt` | The Compose theme |
+| `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Reads the session cookie at the moment it's needed; `online()` |
+| `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
+| `android/app/src/main/java/me/hadoku/app/download/EpisodeDownloads.kt` | Enqueues one file from watchparty's media route via DownloadManager |
+| `android/app/src/main/java/me/hadoku/app/player/PlaybackService.kt` | The one player: a Media3 `MediaSessionService` — background audio, lock-screen controls, saved position |
+| `android/app/src/main/java/me/hadoku/app/player/PlayerActivity.kt` | The screen that connects to `PlaybackService` |
+| `android/app/src/test/` | JVM unit tests |
+| `android/app/src/androidTest/` | Instrumented tests; `assets/episodes/fixture-s01e01` is a synthetic episode |
+| `e2e/` | Playwright, driving the real WebView inside the installed debug APK |
+| `scripts/` | `emulator.sh`, `release.mjs` (dispatches a release), `release-version.mjs` (computes one) |
 
 Nothing a visitor sees is bundled: `www/` is one placeholder page that is
 never actually shown, because `server.url` replaces it with the live site.
@@ -62,12 +58,16 @@ loudly rather than skip.
 ## How it deploys
 
 `build-apk.yml` is both the gate and the ship path: every push and PR builds
-a debug APK. A release is a separate, manual act — `pnpm release
-patch|minor|major|X.Y.Z` dispatches the same workflow with a `release` input;
-nothing in the repo is ever edited for it. The version is computed at build
-time from the newest `vX.Y.Z` tag on the remote and stepped (never
-committed), and the workflow creates the tag and the GitHub Release itself
-on the commit it built.
+a debug APK. A release is a separate, manual act that edits nothing in the
+repo — the version is computed at build time and only ever moves forward:
+
+```mermaid
+flowchart LR
+    A["pnpm release patch|minor|major|X.Y.Z"] --> B["build-apk.yml on main"]
+    B --> C["read the newest vX.Y.Z tag, step it"]
+    C --> D["build + sign the APK"]
+    D --> E["create the vX.Y.Z tag and GitHub Release"]
+```
 
 ## Trivia
 
