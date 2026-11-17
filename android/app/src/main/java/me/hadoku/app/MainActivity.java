@@ -13,6 +13,7 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 import com.getcapacitor.WebViewListener;
 import me.hadoku.app.library.LibraryActivity;
+import me.hadoku.app.update.UpdateCheck;
 
 /**
  * The shell. Everything a visitor sees is the live site at capacitor.config.json's
@@ -52,6 +53,9 @@ import me.hadoku.app.library.LibraryActivity;
  * navigation to LibraryActivity.LINK (watchparty's lobby shows that link only
  * inside the app) starts it. Remote mode has no offline page of its own, only
  * a browser error, so a launch with no network opens the Library too.
+ *
+ * And on resume it asks UpdateCheck whether a newer release exists (at most
+ * twice a day), which offers to download it.
  */
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
@@ -135,6 +139,12 @@ public class MainActivity extends BridgeActivity {
             WebView webView = bridge.getWebView();
             if (webView.copyBackForwardList().getSize() > 0) goToLauncher(webView);
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        UpdateCheck.maybeCheck(this);
     }
 
     @Override

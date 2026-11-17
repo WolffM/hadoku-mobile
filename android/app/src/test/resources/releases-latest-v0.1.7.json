@@ -1,0 +1,37 @@
+{
+  "url": "https://api.github.com/repos/WolffM/hadoku-mobile/releases/447743607",
+  "assets_url": "https://api.github.com/repos/WolffM/hadoku-mobile/releases/447743607/assets",
+  "upload_url": "https://uploads.github.com/repos/WolffM/hadoku-mobile/releases/447743607/assets{?name,label}",
+  "html_url": "https://github.com/WolffM/hadoku-mobile/releases/tag/v0.1.7",
+  "id": 447743607,
+  "node_id": "RE_kwDOVRxKC84asAZ3",
+  "tag_name": "v0.1.7",
+  "target_commitish": "3a110bb223de2a01a43677915b39b21c3edc0c62",
+  "name": "v0.1.7",
+  "draft": false,
+  "immutable": false,
+  "prerelease": false,
+  "created_at": "2026-11-16T22:34:39Z",
+  "updated_at": "2026-11-16T23:24:58Z",
+  "published_at": "2026-11-16T23:24:58Z",
+  "assets": [
+    {
+      "url": "https://api.github.com/repos/WolffM/hadoku-mobile/releases/assets/756843366",
+      "id": 756843366,
+      "node_id": "RA_kwDOVRxKC84tHINm",
+      "name": "hadoku-v0.1.7.apk",
+      "label": "",
+      "content_type": "application/vnd.android.package-archive",
+      "state": "uploaded",
+      "size": 13030673,
+      "digest": "sha256:c2ecd95c6a91ae67be2157851136858fa6943d5c6964c23ab67fb0b9e8455d49",
+      "download_count": 1,
+      "created_at": "2026-11-16T23:24:55Z",
+      "updated_at": "2026-11-16T23:24:57Z",
+      "browser_download_url": "https://github.com/WolffM/hadoku-mobile/releases/download/v0.1.7/hadoku-v0.1.7.apk"
+    }
+  ],
+  "tarball_url": "https://api.github.com/repos/WolffM/hadoku-mobile/tarball/v0.1.7",
+  "zipball_url": "https://api.github.com/repos/WolffM/hadoku-mobile/zipball/v0.1.7",
+  "body": null
+}

@@ -18,6 +18,7 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Native requests as the signed-in visitor (cookie read at use), `online()` |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
 | `android/app/src/main/java/me/hadoku/app/download/` | `EpisodeDownloads`: one file from `/watchparty/media/*` into the episode dir |
+| `android/app/src/main/java/me/hadoku/app/update/` | `UpdateCheck`: on resume (at most every 12 h, release builds only) reads this repo's public `releases/latest`; if its tag is newer than versionName, an "Update available" dialog opens the APK's download link in the browser |
 | `android/app/src/main/java/me/hadoku/app/player/` | `PlaybackService` (Media3 `MediaSessionService`: the one player, background audio, lock-screen controls, saved position) and `PlayerActivity`, the screen that connects to it |
 | `android/app/src/test/` | JVM unit tests |
 | `android/app/src/androidTest/` | Instrumented tests; `assets/episodes/fixture-s01e01` is a synthetic episode |
@@ -50,7 +51,7 @@ on adb, and every device command below calls it first.
 | Layer | Command | Runs where | What it proves |
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
-| Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records |
+| Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records, the update check's release parsing (on v0.1.7's real `releases/latest`) and version comparison |
 | Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); an episode longer than the player reads ahead shows its length from the start, seeks past the buffer and ends; a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [media id or dir] [s]` | emulator / phone | the same four tests on a real episode fetched from production (default Frieren s01e01, 180 s): its length is index.json's from the start, and the seek and pace check run 60% of the way in |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, the "Home" shortcut (warm and cold), sign-in form, "Continue without signing in" returns to the launcher |
@@ -198,3 +199,6 @@ on adb, and every device command below calls it first.
 - Does NOT bundle any site's code. Everything rendered comes from hadoku.me at run time.
 - Does NOT hold secrets. The release keystore lives in the vault and reaches CI as a secret.
 - Does NOT publish to npm.
+- Does NOT install updates itself. `UpdateCheck` only points the browser at the new APK; the
+  visitor installs it, as they installed the first one. A dev build (`0.0.0-dev`) never checks,
+  so to see the prompt build with `APP_VERSION_NAME` set below the latest release.
