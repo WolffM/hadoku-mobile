@@ -45,7 +45,10 @@ import me.hadoku.app.web.PageMediaService;
  * And it keeps the launcher as home. The site's "home" links point at
  * hadoku.me/, which is the portfolio front page; in the app home is the
  * launcher, so a navigation to the site root goes back to the launcher entry
- * in history (or loads it, if there is none) instead.
+ * in history (or loads it, if there is none) instead. A link to the launcher
+ * itself does the same (the sign-in page's "Continue without signing in" is
+ * one), so it is never stacked on top of the page that linked to it and Back
+ * from it still leaves the app.
  *
  * The app icon's long-press "Home" shortcut (res/xml/shortcuts.xml) sends
  * HOME, which does the same from wherever the app was left. A cold start
@@ -83,7 +86,7 @@ public class MainActivity extends BridgeActivity {
                     startActivity(LibraryActivity.intent(MainActivity.this));
                     return true;
                 }
-                if (isSiteRoot(request.getUrl())) {
+                if (isHome(request.getUrl())) {
                     goToLauncher(view);
                     return true;
                 }
@@ -128,9 +131,12 @@ public class MainActivity extends BridgeActivity {
         });
     }
 
-    private static boolean isSiteRoot(Uri url) {
+    /** The site root or the launcher: home, in the app. */
+    private static boolean isHome(Uri url) {
         String path = url.getPath();
-        return "https".equals(url.getScheme()) && "hadoku.me".equals(url.getHost()) && (path == null || path.isEmpty() || path.equals("/"));
+        boolean root = path == null || path.isEmpty() || path.equals("/");
+        boolean launcher = "/apps".equals(path) || "/apps/".equals(path);
+        return "https".equals(url.getScheme()) && "hadoku.me".equals(url.getHost()) && (root || launcher);
     }
 
     /** Back to the most recent launcher entry, so Back from there still leaves the app. */
