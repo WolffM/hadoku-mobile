@@ -13,9 +13,10 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `capacitor.config.ts` | `server.url`, UA suffix, System Bars insets. The whole product. |
 | (no committed version) | The version is computed by CI at release time (`scripts/release-version.mjs`) and reaches Gradle and the UA suffix as `APP_VERSION_NAME` / `APP_VERSION_CODE`. Nothing in the repo is ever edited to release |
 | `android/` | Capacitor-generated Android project (committed, like task-mobile) |
-| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/`, or the app icon's long-press "Home" shortcut in `res/xml/shortcuts.xml`, goes back to `/apps/`), opens the Library on `hadoku://library` or when offline |
+| `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two probe facts and its own pause/resume/stop, registers `PageMediaPlugin`, flushes cookies on pause, owns Back, keeps the launcher as home (a link to `hadoku.me/`, or the app icon's long-press "Home" shortcut in `res/xml/shortcuts.xml`, goes back to `/apps/`), opens the Library on `hadoku://library` or when offline |
 | `android/app/src/main/java/me/hadoku/app/Theme.kt` | The Compose theme (Material You colours) |
 | `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Native requests as the signed-in visitor (cookie read at use), `online()` |
+| `android/app/src/main/java/me/hadoku/app/web/` | Page audio in the background: `PageMediaPlugin` (document-start script on hadoku.me + origin-scoped `WebMessageListener` reporting `{playing, title}`), `PageMediaReport` (parses it), `PageMediaService` (foreground service of type mediaPlayback, platform `MediaSession` + notification, wake and Wi-Fi locks while playing) |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
 | `android/app/src/main/java/me/hadoku/app/download/` | `EpisodeDownloads`: one file from `/watchparty/media/*` into the episode dir |
 | `android/app/src/main/java/me/hadoku/app/update/` | `UpdateCheck`: on resume (at most every 12 h, release builds only) reads this repo's public `releases/latest`; if its tag is newer than versionName, an "Update available" dialog opens the APK's download link in the browser |
@@ -51,10 +52,11 @@ on adb, and every device command below calls it first.
 | Layer | Command | Runs where | What it proves |
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI `build` | config + e2e suite compile |
-| Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records, the update check's release parsing (on v0.1.7's real `releases/latest`) and version comparison |
+| Unit (JVM) | `pnpm test:unit` | CI `build` | episode layout, catalog / index.json / tracks.json parsing (on Frieren's real metadata), the Library's records, the page's media report, the update check's release parsing (on v0.1.7's real `releases/latest`) and version comparison |
 | Instrumented | `pnpm test:device` | emulator | the player plays the fixture (tracks, languages, subtitles, seek, no drift); an episode longer than the player reads ahead shows its length from the start, seeks past the buffer and ends; a saved episode plays, resumes and deletes; playback carries on after Home and screen-off, answers the system media keys, returns from the notification and stops on Back; the Library link opens the Library and its back arrow returns; no network at launch opens the Library |
 | Real media | `pnpm test:player-real [media id or dir] [s]` | emulator / phone | the same four tests on a real episode fetched from production (default Frieren s01e01, 180 s): its length is index.json's from the start, and the seek and pace check run 60% of the way in |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, tile → site → Back, Back exits, the "Home" shortcut (warm and cold), sign-in form, "Continue without signing in" returns to the launcher |
+| Background audio e2e | `pnpm e2e:background` | emulator, ~6 min | a page's detached `new Audio()` plays on through 4 min of Home + screen-off with the process never in the freezer's list and `currentTime` keeping pace with the wall clock; the notification carries the page title; navigation stops it; `cmd media_session dispatch pause/play` pause and play an autoplaying in-document element; a muted video never resumes it |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | cookie reaches native code and not page JS, is on disk from the first page load (survives an immediate kill), follows into sites; the launcher shows the session after Back, after a link home, and once the network returns |
 | Download resume | `pnpm emulator:sign-in`, then `pnpm test:download-resume [file] [n]` | emulator | a real file through the edge survives n airplane-mode cuts, byte-identical to the origin |
 | Library live | `pnpm emulator:sign-in`, then `pnpm test:library-live [path]` | emulator | "usable on a flight": browse, download (~560 MB), sha256 = content_token, airplane mode, cold launch, watch |
@@ -105,6 +107,9 @@ on adb, and every device command below calls it first.
   `rebuffers=0 audioUnderruns=0` on the `played … ms` line means the device was starved; rebuffers
   mean the player was waiting on the file, which is a real fault. Check `uptime` before believing
   a failure there. `ONLY=<test method>` runs one of the four.
+- **A release APK on the emulator blocks every debug install** (`INSTALL_FAILED_VERSION_DOWNGRADE`:
+  a release's versionCode is 1006 and up, a debug build's is 1); a test run after a failed
+  install drives the old release. `adb uninstall me.hadoku.app` first.
 - Screenshots the player tests take land in
   `/sdcard/Android/data/me.hadoku.app/files/test-screenshots/<mediaId>/`.
 
@@ -151,7 +156,10 @@ on adb, and every device command below calls it first.
   JavaScript, not from the native cookie store — which is also why a download must be
   enqueued natively, never from a page-fed plugin.
 - **Never log a cookie value.** `MainActivity` logs presence (`hadoku_session=present|absent`)
-  and whether `window.Capacitor` exists; that is the only logging, and it stays that way.
+  and whether `window.Capacitor` exists. The other `HadokuShell` lines are lifecycle
+  (`activity paused|resumed|stopped`) and the page-media keep-alive
+  (`page media keep-alive started|paused|resumed|title|stopped reason=…|refused|control=…`), so
+  a page that went quiet in the background is diagnosable from `adb logcat -s HadokuShell`.
 - **`server.url` is a works-but-unsupported Capacitor mode** (its docs say "not intended for
   production"). Keep `CapacitorHttp.enabled` and `CapacitorCookies.enabled` at their `false`
   defaults, never set `server.hostname` to the remote domain, keep `allowNavigation` empty.
@@ -159,6 +167,41 @@ on adb, and every device command below calls it first.
   bare WebView is this one activity.
 - **All browser traffic goes through `hadoku.me/<prefix>/*`**, never `*.hadoku.me` direct
   subdomains (platform rule; see `../hadoku_site/AGENTS.md`).
+
+## Page audio in the background
+
+- **Without a foreground service the freezer stops the page.** Measured on the `spike` emulator
+  (API 36), 2026-11-22, on v0.1.6: a page's `<audio>` played in the app, then Home + screen-off;
+  `am_freeze [pid,me.hadoku.app]` landed 66 s after `screen_toggled: 0`, at oom adj 900 (cached),
+  and the process stayed in `dumpsys activity`'s "Apps frozen" list until the screen came back.
+  That is the "stops after a minute or two" report from a Pixel 8a. With `PageMediaService` the
+  same run was never frozen in 4 min, sat at adj 200, and the page played 248.8 s of 249.3 s
+  (232.5 of 250 in a run at a host load of 160: the emulator starving, not a freeze). Capacitor does not pause the WebView
+  (`KeepRunning` defaults to true, so `handlePause` never calls `onPause`/`pauseTimers`); the
+  freezer is the whole cause. Chrome survives the same page because it runs a mediaPlayback
+  foreground service for a playing tab, which is what `PageMediaService` does.
+- **How the page tells us.** `PageMediaPlugin` is a Capacitor plugin only so it loads before the
+  first page; its document-start script (hadoku.me only, main frame only) wraps
+  `HTMLMediaElement.prototype.play` (a detached `new Audio()`, as a music player page uses, never reaches a
+  document listener) and capture-listens for `play` in the document (autoplay), then posts
+  `{playing, title}` when "anything audible playing" changes. It uses
+  `WebViewCompat.addWebMessageListener` with the hadoku.me origin rule, not a
+  `@JavascriptInterface` (which every frame of every origin could call); the notification's
+  play/pause go back over that frame's reply proxy. Muted or volume-0 media does not count.
+- **A pause keeps it for `GRACE_MS` (2 min).** A foreground service cannot be started from the
+  background, and a player pauses for a moment at every track change and dropped-stream retry
+  (one player backs off up to 64 s), so stopping on every pause would end the night at the first
+  track change. A navigation (`onPageStarted`, in MainActivity's listener: a listener a plugin
+  adds in `load()` is dropped, because `Bridge.Builder.create()` replaces the bridge's listener
+  list after plugins load) or the activity's end stops it at once. A page that
+  starts playing while the app is already in the background with no keep-alive left is refused
+  (`keep-alive refused` in logcat) and plays only until frozen.
+- **Locks only while playing.** A partial wake lock and a `WIFI_MODE_FULL_HIGH_PERF` Wi-Fi lock,
+  what ExoPlayer's `WAKE_MODE_NETWORK` takes for streamed media: the players read their file in
+  4 MB range chunks as they go. The emulator cannot show radio power-saving, so this one rests on
+  ExoPlayer's practice, not a measurement.
+- **Android WebView has no Media Session API** (`MediaMetadata` is undefined), so the title is
+  `document.title`; the script reads `navigator.mediaSession.metadata` first in case that changes.
 
 ## The Library
 

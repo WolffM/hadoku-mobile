@@ -59,6 +59,39 @@ export class App {
     await this.shell('input keyevent KEYCODE_BACK');
   }
 
+  /** The power key: the screen off (and the device free to doze), or back on and unlocked. */
+  async screen(on: boolean): Promise<void> {
+    await this.shell(`input keyevent ${on ? 'KEYCODE_WAKEUP' : 'KEYCODE_SLEEP'}`);
+    if (on) await this.shell('wm dismiss-keyguard');
+  }
+
+  /** A system media key, as the lock screen or a headset sends it to the active session. */
+  async mediaKey(key: 'play' | 'pause'): Promise<void> {
+    await this.shell(`cmd media_session dispatch ${key}`);
+  }
+
+  /** Whether the cached-apps freezer holds the app's process right now. */
+  async frozen(): Promise<boolean> {
+    const pid = (await this.shell(`pidof ${PKG}`)).trim();
+    const out = await this.shell('dumpsys activity');
+    const list = out.slice(out.indexOf('Apps frozen:'), out.indexOf('CacheOomRanker'));
+    return pid !== '' && new RegExp(`\\b${pid} ${PKG.replaceAll('.', '\\.')}\\b`).test(list);
+  }
+
+  /** The app's own lines in logcat since launch (MainActivity and the page-media keep-alive). */
+  async log(): Promise<string> {
+    return this.shell('logcat -d -s HadokuShell:I');
+  }
+
+  /** The app's notifications, as the shade holds them. */
+  async notification(): Promise<string> {
+    const out = await this.shell('dumpsys notification --noredact');
+    return out
+      .split(/\n(?=\s*NotificationRecord\()/)
+      .filter((r) => r.includes(`pkg=${PKG}`))
+      .join('\n');
+  }
+
   async isForeground(): Promise<boolean> {
     const out = await this.shell('dumpsys activity activities');
     return /ResumedActivity.*me\.hadoku\.app\//.test(out);
@@ -85,7 +118,10 @@ export class App {
 
   private async pid(): Promise<number> {
     let pid = 0;
-    await expect.poll(async () => (pid = Number((await this.shell(`pidof ${PKG}`)).trim()) || 0)).toBeGreaterThan(0);
+    // A cold start took 25 s on hokon at a load of 115, and missed 15 s at 160.
+    await expect
+      .poll(async () => (pid = Number((await this.shell(`pidof ${PKG}`)).trim()) || 0), { timeout: 60_000 })
+      .toBeGreaterThan(0);
     return pid;
   }
 

@@ -24,6 +24,26 @@ no token, nothing written to disk by the app. It reads the session cookie
 from the WebView's cookie store only at the moment something native needs
 it (a download), and never logs its value, only whether one is present.
 
+## Page audio in the background
+
+**What it does.** A hadoku.me page that plays sound (a music player, a
+preview, any `<audio>` or `<video>` with its sound on) keeps playing when you
+press Home or the screen turns off, the way it does in Chrome. While it plays
+the app shows a media notification named after the page, with a pause
+button that also answers the lock screen and a headset.
+
+**How to use it.** Nothing to do: start something on a page and leave the
+app. Pause it from the page, the notification or a headset; the notification
+stays for two minutes with a play button, then goes. Moving to another page
+ends it at once.
+
+**What it does not do.** Muted media (a looping art video) never counts, and
+a page cannot start the notification from the background: a page that
+begins to play while the app is already out of sight, with nothing playing in
+the last two minutes, plays only until Android freezes the app. Android's
+WebView has no Media Session API, so the notification shows the page's title,
+not the track a page names in `navigator.mediaSession`.
+
 ## Library
 
 **What it does.** A native screen for browsing watchparty's episode catalog

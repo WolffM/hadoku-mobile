@@ -27,6 +27,7 @@ and fails a duplicate-class check on two old Kotlin stdlibs.
 | `android/app/src/main/java/me/hadoku/app/MainActivity.java` | The shell: logs the two startup probes, flushes cookies, owns Back, keeps the launcher as home, opens the Library offline or on its deep link |
 | `android/app/src/main/java/me/hadoku/app/Theme.kt` | The Compose theme |
 | `android/app/src/main/java/me/hadoku/app/Hadoku.kt` | Reads the session cookie at the moment it's needed; `online()` |
+| `android/app/src/main/java/me/hadoku/app/web/` | `PageMediaPlugin` (a document-start script that reports whether the page is playing sound) and `PageMediaService` (the foreground service and media notification that keep the app alive while it does) |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
 | `android/app/src/main/java/me/hadoku/app/download/EpisodeDownloads.kt` | Enqueues one file from watchparty's media route via DownloadManager |
 | `android/app/src/main/java/me/hadoku/app/player/PlaybackService.kt` | The one player: a Media3 `MediaSessionService` — background audio, lock-screen controls, saved position |
@@ -44,9 +45,10 @@ never actually shown, because `server.url` replaces it with the live site.
 | Layer | Command | Runs where | What it proves |
 | --- | --- | --- | --- |
 | Typecheck | `pnpm typecheck` | CI | config + e2e suite compile |
-| Unit (JVM) | `pnpm test:unit` | CI | episode layout and JSON parsing, the Library's records |
+| Unit (JVM) | `pnpm test:unit` | CI | episode layout and JSON parsing, the Library's records, the page's media report |
 | Instrumented | `pnpm test:device` | emulator | playback, downloads, resume, background audio, system media keys |
 | Shell e2e | `pnpm e2e` | emulator | launcher, bridge, UA, locked tiles, Back behaviour, the Home shortcut |
+| Background audio e2e | `pnpm e2e:background` | emulator | a page's audio plays on for four minutes after Home and screen-off without the app being frozen; media keys pause and play it; muted media doesn't count |
 | Signed-in e2e | `pnpm e2e:signed-in` | emulator, by hand | the session cookie reaches native code but not page JS |
 
 CI (`build-apk.yml`) compiles the instrumented tests so they can't rot, but

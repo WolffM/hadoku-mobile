@@ -13,5 +13,7 @@ export default defineConfig({
   projects: [
     { name: 'shell', testMatch: 'shell.spec.ts' },
     { name: 'signed-in', testMatch: 'signed-in.spec.ts' },
+    // Minutes in the background with the screen off, so not part of `pnpm e2e`.
+    { name: 'background', testMatch: 'background-audio.spec.ts' },
   ],
 });

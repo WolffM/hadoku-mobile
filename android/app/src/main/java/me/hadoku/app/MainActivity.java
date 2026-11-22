@@ -14,6 +14,8 @@ import com.getcapacitor.BridgeWebViewClient;
 import com.getcapacitor.WebViewListener;
 import me.hadoku.app.library.LibraryActivity;
 import me.hadoku.app.update.UpdateCheck;
+import me.hadoku.app.web.PageMediaPlugin;
+import me.hadoku.app.web.PageMediaService;
 
 /**
  * The shell. Everything a visitor sees is the live site at capacitor.config.json's
@@ -56,6 +58,10 @@ import me.hadoku.app.update.UpdateCheck;
  *
  * And on resume it asks UpdateCheck whether a newer release exists (at most
  * twice a day), which offers to download it.
+ *
+ * And it registers PageMediaPlugin, which keeps the app alive while a page
+ * plays sound (PageMediaService), and logs its own pause, resume and stop, so
+ * a page that went quiet in the background can be read from logcat.
  */
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "HadokuShell";
@@ -66,6 +72,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Before super: Bridge loads plugins before the first page, which is what puts
+        // the page-media script in every document.
+        registerPlugin(PageMediaPlugin.class);
         super.onCreate(savedInstanceState);
         bridge.setWebViewClient(new BridgeWebViewClient(bridge) {
             @Override
@@ -98,6 +107,12 @@ public class MainActivity extends BridgeActivity {
             }
         });
         this.bridge.addWebViewListener(new WebViewListener() {
+            @Override
+            public void onPageStarted(WebView webView) {
+                // A new document has no media yet; whatever the old one played is gone.
+                PageMediaService.stop("navigation");
+            }
+
             @Override
             public void onPageLoaded(WebView webView) {
                 String url = webView.getUrl();
@@ -144,12 +159,20 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        Log.i(TAG, "activity resumed");
         UpdateCheck.maybeCheck(this);
     }
 
     @Override
     public void onPause() {
+        Log.i(TAG, "activity paused");
         CookieManager.getInstance().flush();
         super.onPause();
+    }
+
+    @Override
+    public void onStop() {
+        Log.i(TAG, "activity stopped");
+        super.onStop();
     }
 }

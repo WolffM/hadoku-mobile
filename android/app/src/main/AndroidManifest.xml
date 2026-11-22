@@ -4,7 +4,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Hadoku.online(): a launch with no network opens the Library. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- PlaybackService: an episode keeps playing with the screen off or the app in the background. -->
+    <!-- PlaybackService and PageMediaService: an episode, or a page's own audio, keeps playing
+         with the screen off or the app in the background. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -70,6 +71,14 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <!-- Keeps the app alive while a page in the WebView plays sound, as Chrome
+             does for a tab: without it the freezer stops the process (and the page's
+             audio) once the screen is off. Started and stopped by PageMediaPlugin. -->
+        <service
+            android:name=".web.PageMediaService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

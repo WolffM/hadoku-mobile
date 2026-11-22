@@ -8,6 +8,9 @@ features:
   - name: App shell
     summary: 'Wraps the live hadoku.me launcher; the app icon''s long-press "Home" shortcut returns to it from anywhere.'
     anchor: app-shell
+  - name: Page audio in the background
+    summary: 'A hadoku.me page that plays sound keeps playing with the screen off, with a media notification, as in Chrome.'
+    anchor: page-audio-in-the-background
   - name: Library
     summary: 'Browse the watchparty catalog and download an episode, choosing which audio languages and subtitles to save.'
     anchor: library
