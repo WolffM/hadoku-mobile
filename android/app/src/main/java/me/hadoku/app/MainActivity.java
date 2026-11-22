@@ -60,7 +60,7 @@ import me.hadoku.app.web.PageMediaService;
  * a browser error, so a launch with no network opens the Library too.
  *
  * And on resume it asks UpdateCheck whether a newer release exists (at most
- * twice a day), which offers to download it.
+ * every 15 minutes), which offers to download it.
  *
  * And it registers PageMediaPlugin, which keeps the app alive while a page
  * plays sound (PageMediaService), and logs its own pause, resume and stop, so

@@ -22,16 +22,24 @@ import kotlin.concurrent.thread
  * installed versionName, and if it is newer offers "Update", which opens the
  * APK's download link in the browser: the same path the app was installed by.
  *
- * At most one check every [INTERVAL_MS], counted from the last check that got
- * an answer, so "Later" asks again only after that. A development build
- * (0.0.0-dev) never checks: it is not a release and every release is newer.
+ * Two clocks. GitHub is asked at most once every [CHECK_INTERVAL_MS] (counted
+ * from the last check that got an answer), so a release is seen within minutes
+ * of the app coming back to the foreground. The prompt for any one version
+ * shows at most once every [PROMPT_INTERVAL_MS], however it was dismissed, so
+ * "Later" isn't a nag. Until 0.1.10 one 12-hour clock did both, so a release
+ * published just after a check that found nothing stayed invisible for up to
+ * half a day (v0.1.9, 2026-11-22). A development build (0.0.0-dev) never
+ * checks: it is not a release and every release is newer.
  */
 object UpdateCheck {
     private const val TAG = "HadokuUpdate"
     private const val LATEST = "https://api.github.com/repos/WolffM/hadoku-mobile/releases/latest"
     private const val PREFS = "update-check"
     private const val CHECKED_AT = "checkedAt"
-    const val INTERVAL_MS = 12 * 60 * 60 * 1000L
+    private const val PROMPTED_VERSION = "promptedVersion"
+    private const val PROMPTED_AT = "promptedAt"
+    const val CHECK_INTERVAL_MS = 15 * 60 * 1000L
+    const val PROMPT_INTERVAL_MS = 12 * 60 * 60 * 1000L
 
     data class Release(val version: String, val apkUrl: String, val pageUrl: String) {
         companion object {
@@ -59,6 +67,13 @@ object UpdateCheck {
         return compareValuesBy(a, b, { it[0] }, { it[1] }, { it[2] }) > 0
     }
 
+    /** Whether to ask GitHub now, given when the last answered check was. */
+    fun checkDue(checkedAt: Long, now: Long): Boolean = now - checkedAt >= CHECK_INTERVAL_MS
+
+    /** Whether to show the prompt for [latest], given the last version prompted for and when. */
+    fun promptDue(latest: String, installed: String, promptedVersion: String?, promptedAt: Long, now: Long): Boolean =
+        isNewer(latest, installed) && (latest != promptedVersion || now - promptedAt >= PROMPT_INTERVAL_MS)
+
     /** Checks in the background if one is due, and shows the prompt on [activity] if a newer release exists. */
     @JvmStatic
     fun maybeCheck(activity: Activity) {
@@ -66,7 +81,7 @@ object UpdateCheck {
         if (parse3(installed) == null) return
         val prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
-        if (now - prefs.getLong(CHECKED_AT, 0) < INTERVAL_MS) return
+        if (!checkDue(prefs.getLong(CHECKED_AT, 0), now)) return
         if (!Hadoku.online(activity)) return
         val app = activity.applicationContext
         thread(name = "update-check") {
@@ -78,9 +93,13 @@ object UpdateCheck {
             }
             prefs.edit().putLong(CHECKED_AT, now).apply()
             Log.i(TAG, "installed=$installed latest=${release?.version ?: "none"}")
-            if (release == null || !isNewer(release.version, installed)) return@thread
+            if (release == null || !promptDue(release.version, installed, prefs.getString(PROMPTED_VERSION, null),
+                    prefs.getLong(PROMPTED_AT, 0), now)) return@thread
             activity.runOnUiThread {
-                if (!activity.isFinishing && !activity.isDestroyed) prompt(activity, installed, release)
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                prefs.edit().putString(PROMPTED_VERSION, release.version).putLong(PROMPTED_AT, now).apply()
+                Log.i(TAG, "prompting installed=$installed latest=${release.version}")
+                prompt(activity, installed, release)
             }
         }
     }

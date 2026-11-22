@@ -35,4 +35,24 @@ class UpdateCheckTest {
         assertFalse(UpdateCheck.isNewer("0.1.6", "0.1.7"))
         assertFalse(UpdateCheck.isNewer("0.1.7", "0.0.0-dev"))
     }
+
+    @Test
+    fun aReleaseIsSeenWithinMinutesNotHalfADay() {
+        // v0.1.9 went out just after a check that found nothing; the old 12 h clock hid it.
+        val checked = 1_000_000_000L
+        assertFalse(UpdateCheck.checkDue(checked, checked + 60_000))
+        assertTrue(UpdateCheck.checkDue(checked, checked + UpdateCheck.CHECK_INTERVAL_MS))
+        assertTrue(UpdateCheck.checkDue(0, checked))
+    }
+
+    @Test
+    fun oneVersionIsPromptedAtMostTwiceADay() {
+        val at = 1_000_000_000L
+        assertTrue(UpdateCheck.promptDue("0.1.9", "0.1.8", null, 0, at))
+        assertFalse(UpdateCheck.promptDue("0.1.9", "0.1.8", "0.1.9", at, at + UpdateCheck.CHECK_INTERVAL_MS))
+        assertTrue(UpdateCheck.promptDue("0.1.9", "0.1.8", "0.1.9", at, at + UpdateCheck.PROMPT_INTERVAL_MS))
+        // A newer release than the one dismissed is shown at once.
+        assertTrue(UpdateCheck.promptDue("0.1.10", "0.1.8", "0.1.9", at, at + 60_000))
+        assertFalse(UpdateCheck.promptDue("0.1.8", "0.1.8", null, 0, at))
+    }
 }

@@ -19,7 +19,7 @@ the reasoning behind every choice: `../hadoku_site/docs/planning/mobile-app-2026
 | `android/app/src/main/java/me/hadoku/app/web/` | Page audio in the background: `PageMediaPlugin` (document-start script on hadoku.me + origin-scoped `WebMessageListener` reporting `{playing, title}`), `PageMediaReport` (parses it), `PageMediaService` (foreground service of type mediaPlayback, platform `MediaSession` + notification, wake and Wi-Fi locks while playing) |
 | `android/app/src/main/java/me/hadoku/app/library/` | Library v1: catalog + episode parsing, `episode.json` records, DownloadManager orchestration, the Compose screens |
 | `android/app/src/main/java/me/hadoku/app/download/` | `EpisodeDownloads`: one file from `/watchparty/media/*` into the episode dir |
-| `android/app/src/main/java/me/hadoku/app/update/` | `UpdateCheck`: on resume (at most every 12 h, release builds only) reads this repo's public `releases/latest`; if its tag is newer than versionName, an "Update available" dialog opens the APK's download link in the browser |
+| `android/app/src/main/java/me/hadoku/app/update/` | `UpdateCheck`: on resume (asks GitHub at most every 15 min; prompts for one version at most every 12 h; release builds only) reads this repo's public `releases/latest`; if its tag is newer than versionName, an "Update available" dialog opens the APK's download link in the browser |
 | `android/app/src/main/java/me/hadoku/app/player/` | `PlaybackService` (Media3 `MediaSessionService`: the one player, background audio, lock-screen controls, saved position) and `PlayerActivity`, the screen that connects to it |
 | `android/app/src/test/` | JVM unit tests |
 | `android/app/src/androidTest/` | Instrumented tests; `assets/episodes/fixture-s01e01` is a synthetic episode |
