@@ -10,6 +10,7 @@
     "test:release-version": "node --test scripts/release-version.test.mjs",
     "test:unit": "cd android && ./gradlew :app:testDebugUnitTest",
     "emulator": "scripts/emulator.sh",
+    "emulator:stop": "scripts/emulator.sh stop",
     "emulator:sign-in": "scripts/emulator.sh && (cd android && ./gradlew -q :app:installDebug) && node ../hadoku_site/scripts/secrets/dev-vault.mjs -- node scripts/emulator-sign-in.mjs",
     "test:device": "scripts/emulator.sh && cd android && ./gradlew :app:connectedDebugAndroidTest",
     "test:player-real": "scripts/emulator.sh && node ../hadoku_site/scripts/secrets/dev-vault.mjs -- scripts/test-player-real.sh",

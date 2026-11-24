@@ -45,7 +45,10 @@ Building needs JDK 21 and an Android SDK with `platforms;android-36` + `build-to
 On hokon the SDK is at `~/Android/Sdk` (installed 2026-10-20 with the command-line tools);
 `android/local.properties` points at it and is gitignored. An emulator AVD named `spike`
 (API 36, google_apis, x86_64) exists there; `pnpm emulator` boots it headless if nothing is
-on adb, and every device command below calls it first.
+on adb, and every device command below calls it first. It stays up between commands but not past
+the session that used it: each call registers its session (`CLAUDE_PID`, else the terminal's
+session leader) and a watcher stops the emulator once none is alive. `pnpm emulator:stop` stops it
+now. One left behind by a finished session ran 41 hours on hokon (2026-11-21 to 11-23).
 
 ## Tests
 

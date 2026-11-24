@@ -57,6 +57,10 @@ fleet has not been asked for. Signed-in tests leave a real 30-day session in
 production, so they never run unattended: without the right key they fail
 loudly rather than skip.
 
+Every emulator command boots the emulator if it isn't running and leaves it up
+for the next one. It shuts itself down once the session that used it has ended,
+and `pnpm emulator:stop` shuts it down at once.
+
 ## How it deploys
 
 `build-apk.yml` is both the gate and the ship path: every push and PR builds
