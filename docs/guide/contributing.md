@@ -60,9 +60,9 @@ loudly rather than skip.
 The two suites CI runs, the JVM unit tests and the release-version node:test
 suite (`pnpm test:release-version`, JUnit to `reports/node-test.xml`), are
 posted on every run, red ones too, to the fleet test store through
-`WolffM/hadoku-actions/report-tests` as suite `unit`. Gradle writes one JUnit
-file per test class, so a step folds them into `reports/gradle-unit.xml` first.
-The step is advisory: it never fails the job.
+`WolffM/hadoku-actions/report-tests` as suite `unit` (the JVM side as Gradle's
+per-class JUnit files, `testDebugUnitTest/TEST-*.xml`). The step is advisory:
+it never fails the job.
 
 Every emulator command boots the emulator if it isn't running and leaves it up
 for the next one. It shuts itself down once the session that used it has ended,

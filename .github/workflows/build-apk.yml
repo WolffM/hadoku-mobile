@@ -123,18 +123,6 @@ jobs:
       - name: Unit tests, debug APK, and the instrumented tests compiled
         run: cd android && ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 
-      # Gradle writes one JUnit file per test class; report-tests reads one
-      # file per line, so fold them into one <testsuites> document.
-      - name: Collect the Gradle unit-test reports
-        if: always()
-        run: |
-          dir=android/app/build/test-results/testDebugUnitTest
-          ls "$dir"/TEST-*.xml >/dev/null 2>&1 || exit 0
-          mkdir -p reports
-          { echo '<?xml version="1.0" encoding="UTF-8"?>'; echo '<testsuites>'
-            for f in "$dir"/TEST-*.xml; do sed '1{/^<?xml/d}' "$f"; done
-            echo '</testsuites>'; } > reports/gradle-unit.xml
-
       # Every test into the fleet test store (hadoku_site
       # docs/planning/unified-test-reporting-2026-11-23.md), red runs too:
       # the release-version node:test suite and the JVM unit tests.
@@ -146,7 +134,7 @@ jobs:
           suite: unit
           reports: |
             node-test reports/node-test.xml
-            junit reports/gradle-unit.xml
+            junit android/app/build/test-results/testDebugUnitTest/TEST-*.xml
           key: ${{ secrets.KEY_SERVICE_MOBILE }}
 
       - name: Upload debug APK
