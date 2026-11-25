@@ -53,3 +53,6 @@ actionlint
 # Playwright output
 e2e/report/
 e2e/results/
+
+# Test reports (report-tests reads them in CI)
+reports/

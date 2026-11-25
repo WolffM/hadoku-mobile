@@ -57,6 +57,13 @@ fleet has not been asked for. Signed-in tests leave a real 30-day session in
 production, so they never run unattended: without the right key they fail
 loudly rather than skip.
 
+The two suites CI runs, the JVM unit tests and the release-version node:test
+suite (`pnpm test:release-version`, JUnit to `reports/node-test.xml`), are
+posted on every run, red ones too, to the fleet test store through
+`WolffM/hadoku-actions/report-tests` as suite `unit`. Gradle writes one JUnit
+file per test class, so a step folds them into `reports/gradle-unit.xml` first.
+The step is advisory: it never fails the job.
+
 Every emulator command boots the emulator if it isn't running and leaves it up
 for the next one. It shuts itself down once the session that used it has ended,
 and `pnpm emulator:stop` shuts it down at once.
